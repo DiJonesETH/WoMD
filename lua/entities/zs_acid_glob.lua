@@ -7,6 +7,8 @@ ENT.PrintName = "Acid"
 ENT.Spawnable = false
 
 ENT.Damage = 6
+ENT.CutChance = 20 -- шанс пореза в процентах
+ENT.CutDamage = 5
 ENT.SplashRadius = 48
 ENT.LifeTime = 6
 
@@ -60,13 +62,27 @@ if SERVER then
 
 			hit[victim] = true
 
+			local char = hg.GetCurrentCharacter(victim)
+
+			-- ожог: именно тип урона DMG_BURN
 			local dmg = DamageInfo()
 			dmg:SetAttacker(attacker)
 			dmg:SetInflictor(self)
 			dmg:SetDamage(self.Damage)
 			dmg:SetDamageType(DMG_BURN)
 			dmg:SetDamagePosition(pos)
-			hg.GetCurrentCharacter(victim):TakeDamageInfo(dmg)
+			char:TakeDamageInfo(dmg)
+
+			-- с шансом частичка оставляет порез (режущий урон дает кровоточащую рану)
+			if math.random(100) <= self.CutChance and IsValid(char) then
+				local cut = DamageInfo()
+				cut:SetAttacker(attacker)
+				cut:SetInflictor(self)
+				cut:SetDamage(self.CutDamage)
+				cut:SetDamageType(DMG_SLASH)
+				cut:SetDamagePosition(pos)
+				char:TakeDamageInfo(cut)
+			end
 		end
 	end
 

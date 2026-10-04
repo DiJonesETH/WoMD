@@ -6,9 +6,14 @@ ENT.Base = "base_anim"
 ENT.PrintName = "Infected Nest"
 ENT.Spawnable = false
 
-ENT.Model = "models/hunter/misc/sphere1x1.mdl"
+ENT.Model = "models/hunter/misc/sphere2x2.mdl"
 ENT.Material = "models/flesh"
 ENT.MaxHealth = 400
+
+-- приплюснутый купол шириной ~95 и высотой ~36 юнитов (половина роста игрока)
+ENT.HeightScale = 0.38
+ENT.HalfWidth = 46
+ENT.HalfHeight = 18
 
 if SERVER then
 	function ENT:Initialize()
@@ -16,9 +21,13 @@ if SERVER then
 		self:SetMaterial(self.Material)
 		self:SetColor(Color(170, 90, 90))
 
-		self:PhysicsInit(SOLID_VPHYSICS)
+		local mins = Vector(-self.HalfWidth, -self.HalfWidth, -self.HalfHeight)
+		local maxs = Vector(self.HalfWidth, self.HalfWidth, self.HalfHeight)
+
+		self:PhysicsInitBox(mins, maxs)
+		self:SetCollisionBounds(mins, maxs)
 		self:SetMoveType(MOVETYPE_NONE)
-		self:SetSolid(SOLID_VPHYSICS)
+		self:SetSolid(SOLID_BBOX)
 
 		local phys = self:GetPhysicsObject()
 		if IsValid(phys) then phys:EnableMotion(false) end
@@ -30,7 +39,7 @@ if SERVER then
 	-- точка появления зараженного рядом с гнездом
 	function ENT:GetSpawnPos()
 		local ang = math.Rand(0, 360)
-		local offset = Angle(0, ang, 0):Forward() * 50
+		local offset = Angle(0, ang, 0):Forward() * (self.HalfWidth + 24)
 
 		local tr = util.TraceHull({
 			start = self:GetPos() + offset + Vector(0, 0, 40),
@@ -66,9 +75,10 @@ else
 		-- гнездо медленно пульсирует
 		local scale = 1 + math.sin(CurTime() * 1.5 + self:EntIndex()) * 0.04
 		local mat = Matrix()
-		mat:Scale(Vector(scale, scale, scale * 0.6))
+		mat:Scale(Vector(scale, scale, scale * self.HeightScale))
 
 		self:EnableMatrix("RenderMultiply", mat)
+		self:SetRenderBounds(Vector(-self.HalfWidth, -self.HalfWidth, -self.HalfHeight) * 1.2, Vector(self.HalfWidth, self.HalfWidth, self.HalfHeight) * 1.2)
 		self:DrawModel()
 	end
 end

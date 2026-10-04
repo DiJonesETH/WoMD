@@ -228,6 +228,10 @@ local function UpdatePhase(mode, force)
 
 	SetPhaseGlobals(wave, mode.saved.Waves, active, phaseEnd)
 
+	if active then
+		hook.Run("ZS_WaveStart", wave)
+	end
+
 	net.Start("zs_phase")
 		net.WriteUInt(wave, 8)
 		net.WriteBool(active)

@@ -321,6 +321,7 @@ if SERVER then
 		ragdoll:SetNWString("ZS_Visual", ply:GetNWString("ZS_Visual"))
 		ragdoll:SetNWBool("ZS_Black", ply:GetNWBool("ZS_Black", false))
 		ragdoll:SetNWBool("ZS_Gray", ply:GetNWBool("ZS_Gray", false))
+		ragdoll:SetNWBool("ZS_Green", ply:GetNWBool("ZS_Green", false))
 		ragdoll:SetNWBool("ZS_BigArms", ply:GetNWBool("ZS_BigArms", false))
 	end)
 
@@ -394,6 +395,7 @@ else
 	local nextScan = 0
 	local colBlack = Color(12, 12, 12)
 	local colGray = Color(140, 140, 140)
+	local colGreen = Color(90, 200, 70)
 	local vecNormal, vecBigArms = Vector(1, 1, 1), Vector(1.35, 1.35, 1.35)
 	local armBones = {
 		"ValveBiped.Bip01_L_UpperArm", "ValveBiped.Bip01_L_Forearm", "ValveBiped.Bip01_L_Hand",
@@ -443,6 +445,8 @@ else
 				visual:SetColor(colBlack)
 			elseif ent:GetNWBool("ZS_Gray", false) then
 				visual:SetColor(colGray)
+			elseif ent:GetNWBool("ZS_Green", false) then
+				visual:SetColor(colGreen)
 			else
 				visual:SetColor(color_white)
 			end

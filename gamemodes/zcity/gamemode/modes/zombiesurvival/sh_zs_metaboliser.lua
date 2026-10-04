@@ -108,6 +108,7 @@ end
 -- модификаторы: питательная среда снижает здоровье и урон
 local function StatsDefaults(ply)
 	ply:SetNWBool("ZS_MethaneReady", false)
+	ply:SetNWBool("ZS_Green", false)
 end
 
 hook.Add("ZS_ClearSkillEffects", "ZS_MetaboliserSkills", StatsDefaults)
@@ -125,6 +126,7 @@ hook.Add("ZS_ApplySkillEffects", "ZS_MetaboliserSkills", function(ply)
 
 	ply:SetNWFloat("ZS_SpeedMul", 1)
 	ply:SetNWFloat("ZS_AttackMul", 1)
+	ply:SetNWBool("ZS_Green", ZS_HasSkill(ply, "herd_pheromones"))
 	ply.zs_DamageTakenMul = damageTaken
 	ply.zs_StaminaMax = nil
 
@@ -140,10 +142,17 @@ end)
 -- одноразовые способности: за жизнь и за раунд
 hook.Add("PlayerSpawn", "ZS_MetaboliserLifeReset", function(ply)
 	ply.zs_NutrientUsed = nil
-	ply.zs_PheromonesUsed = nil
 	ply.zs_SpikeUsed = nil
 	ply.zs_MethaneDamage = 0
 	ply:SetNWBool("ZS_MethaneReady", false)
+end)
+
+-- гнездо и волдырь доступны заново в каждой волне
+hook.Add("ZS_WaveStart", "ZS_MetaboliserWaveReset", function()
+	for _, ply in player.Iterator() do
+		ply.zs_NestUsed = nil
+		ply.zs_BlisterUsed = nil
+	end
 end)
 
 hook.Add("ZS_RoundReset", "ZS_MetaboliserRoundReset", function(ply)
@@ -332,7 +341,10 @@ local function MethaneExplode(ply)
 		hg.GetCurrentCharacter(victim):TakeDamageInfo(dmg)
 	end
 
-	ZS_SpawnAcidBurst(ply, pos, 24, 420)
+	-- плотный выброс кислоты: три кольца с разной дальностью
+	ZS_SpawnAcidBurst(ply, pos, 30, 520)
+	ZS_SpawnAcidBurst(ply, pos, 24, 360)
+	ZS_SpawnAcidBurst(ply, pos, 18, 200)
 
 	sound.Play("physics/flesh/flesh_bloody_break.wav", pos, 90, 80)
 	sound.Play("npc/antlion_grub/squashed.wav", pos, 85, 90)
@@ -359,7 +371,7 @@ end
 
 local function BuildNest(ply)
 	if ply.zs_NestUsed then
-		Notify(ply, "Гнездо уже построено в этом раунде")
+		Notify(ply, "Гнездо уже построено в этой волне")
 		return
 	end
 
@@ -372,7 +384,7 @@ local function BuildNest(ply)
 	ply.zs_NestUsed = true
 
 	local nest = ents.Create("zs_nest")
-	nest:SetPos(pos - Vector(0, 0, 8))
+	nest:SetPos(pos + Vector(0, 0, nest.HalfHeight - 4))
 	nest:SetOwner(ply)
 	nest:Spawn()
 
@@ -382,7 +394,7 @@ end
 
 local function PlaceBlister(ply)
 	if ply.zs_BlisterUsed then
-		Notify(ply, "Волдырь уже поставлен в этом раунде")
+		Notify(ply, "Волдырь уже поставлен в этой волне")
 		return
 	end
 
@@ -431,23 +443,23 @@ local function BacterialSeeding(ply)
 end
 
 -- Питательная среда (CTRL+R) и стадные феромоны (ALT+R)
+-- CTRL+R раз за жизнь: один обычный зомби, а со стадными феромонами вместо него три быстрых
 local function SpawnNutrientNPC(ply)
 	if ply.zs_NutrientUsed then return end
 	ply.zs_NutrientUsed = true
 
-	SpawnZombieNPC("npc_zombie", FindSpawnSpot(ply, 80), ply)
-	ply:EmitSound("npc/zombie/zombie_alert" .. math.random(3) .. ".wav", 80)
-end
+	if ZS_HasSkill(ply, "herd_pheromones") then
+		for _ = 1, 3 do
+			if not IsValid(SpawnZombieNPC("npc_fastzombie", FindSpawnSpot(ply, 100), ply)) then
+				SpawnZombieNPC("npc_zombie", FindSpawnSpot(ply, 100), ply)
+			end
+		end
 
-local function SpawnPheromoneNPCs(ply)
-	if ply.zs_PheromonesUsed then return end
-	ply.zs_PheromonesUsed = true
-
-	for _ = 1, 3 do
-		SpawnZombieNPC("npc_fastzombie", FindSpawnSpot(ply, 100), ply)
+		ply:EmitSound("npc/fast_zombie/fz_scream1.wav", 85)
+	else
+		SpawnZombieNPC("npc_zombie", FindSpawnSpot(ply, 80), ply)
+		ply:EmitSound("npc/zombie/zombie_alert" .. math.random(3) .. ".wav", 80)
 	end
-
-	ply:EmitSound("npc/fast_zombie/fz_scream1.wav", 85)
 end
 
 hook.Add("KeyPress", "ZS_MetaboliserAbilities", function(ply, key)
@@ -456,8 +468,6 @@ hook.Add("KeyPress", "ZS_MetaboliserAbilities", function(ply, key)
 	if key == IN_RELOAD then
 		if ply:KeyDown(IN_DUCK) then
 			if ZS_HasSkill(ply, "nutrient_medium") then SpawnNutrientNPC(ply) end
-		elseif ply:KeyDown(IN_WALK) then
-			if ZS_HasSkill(ply, "herd_pheromones") then SpawnPheromoneNPCs(ply) end
 		elseif ZS_HasSkill(ply, "methane") then
 			MethaneExplode(ply)
 		elseif ZS_HasSkill(ply, "bacterial_seeding") then
