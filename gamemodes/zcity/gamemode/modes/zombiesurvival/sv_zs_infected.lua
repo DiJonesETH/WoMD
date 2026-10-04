@@ -23,10 +23,35 @@ local function SendSkills(ply)
 	net.Send(ply)
 end
 
+local function GrantSkill(ply, id)
+	ply.zs_Skills = ply.zs_Skills or {}
+	ply.zs_Skills[id] = true
+	ply:SetNWBool("ZS_Skill_" .. id, true)
+
+	local tree = MODE.SkillTrees[ply.zs_Class]
+	local skill = tree and tree[id]
+
+	if skill and skill.OnBuy then
+		skill.OnBuy(ply)
+	end
+
+	hook.Run("ZS_ApplySkillEffects", ply)
+	SendSkills(ply)
+end
+
+function Infected.ClearSkills(ply)
+	for id in pairs(MODE:GetAllSkillIds()) do
+		ply:SetNWBool("ZS_Skill_" .. id, false)
+	end
+
+	ply.zs_Skills = {}
+	hook.Run("ZS_ClearSkillEffects", ply)
+end
+
 function Infected.Reset()
 	for _, ply in player.Iterator() do
 		ply.zs_Class = nil
-		ply.zs_Skills = {}
+		Infected.ClearSkills(ply)
 		ply.zs_EatTarget = nil
 
 		ply:SetNWString("ZS_Class", "")
@@ -50,6 +75,13 @@ function Infected.SetClass(ply, class)
 
 	ply.zs_Class = class
 	ply:SetNWString("ZS_Class", class)
+
+	-- стартовые навыки класса (например, аутофагия у agile)
+	for id, skill in SortedPairs(MODE.SkillTrees[class] or {}) do
+		if skill.auto then
+			GrantSkill(ply, id)
+		end
+	end
 end
 
 -- true, если класс уже выбран; иначе открывает игроку меню выбора (боты выбирают случайно)
@@ -86,28 +118,16 @@ net.Receive("zs_buyskill", function(len, ply)
 
 	if not IsZSRound() or not ply.zs_Class then return end
 
-	local tree = MODE.SkillTrees[ply.zs_Class]
-	local skill = tree and tree[skillId]
-	if not skill then return end
-
 	ply.zs_Skills = ply.zs_Skills or {}
-	if ply.zs_Skills[skillId] then return end
-
-	for _, req in ipairs(skill.requires or {}) do
-		if not ply.zs_Skills[req] then return end
-	end
 
 	local points = ply:GetNWInt("ZS_Points", 0)
-	if points < (skill.cost or 0) then return end
+	if not MODE:CanLearnSkill(ply.zs_Skills, ply.zs_Class, skillId, points) then return end
 
+	local skill = MODE.SkillTrees[ply.zs_Class][skillId]
 	ply:SetNWInt("ZS_Points", points - (skill.cost or 0))
-	ply.zs_Skills[skillId] = true
 
-	if skill.OnBuy then
-		skill.OnBuy(ply)
-	end
-
-	SendSkills(ply)
+	GrantSkill(ply, skillId)
+	ply:EmitSound("npc/zombie/zombie_alert" .. math.random(3) .. ".wav", 70)
 end)
 
 -- 1 очко за 1 хп урона по выжившему

@@ -1406,6 +1406,8 @@ end
 function SWEP:PrimaryAttack(forcespecial)
 	local owner = self:GetOwner()
 	if not IsValid(owner) or owner:InVehicle() then return end
+	-- E+M1 у зараженных Zombie Survival занят навыками (рывок, укус)
+	if zsClawClasses[owner.PlayerClassName] and owner:KeyDown(IN_USE) and ZS_HasSkill and (ZS_HasSkill(owner, "dash") or ZS_HasSkill(owner, "hyperdontia")) then return end
 	if (self.attacked or 0) > CurTime() then return end
 	local side = "fists_left"
 	local rand = math.Round(util.SharedRandom( "fist_Punching", 1, 2 ), 0) == 1
@@ -1484,8 +1486,9 @@ function SWEP:PrimaryAttack(forcespecial)
 
 	self:UpdateNextIdle()
 
-	self:SetNextPrimaryFire(CurTime() + .35 * math.Clamp((180 - owner.organism.stamina[1]) / 90,1,2) + (math.max(special_attack and 0.5 or 0, clawClasses[owner.PlayerClassName] or 0)))
-	self:SetNextSecondaryFire(CurTime() + .35 + (math.max(special_attack and 0.5 or 0, clawClasses[owner.PlayerClassName] or 0)))
+	local attackMul = zsClawClasses[owner.PlayerClassName] and owner:GetNWFloat("ZS_AttackMul", 1) or 1
+	self:SetNextPrimaryFire(CurTime() + (.35 * math.Clamp((180 - owner.organism.stamina[1]) / 90,1,2) + (math.max(special_attack and 0.5 or 0, clawClasses[owner.PlayerClassName] or 0))) * attackMul)
+	self:SetNextSecondaryFire(CurTime() + (.35 + (math.max(special_attack and 0.5 or 0, clawClasses[owner.PlayerClassName] or 0))) * attackMul)
 	self:SetLastShootTime(CurTime())
 
 	local snd, pitch = "weapons/slam/throw.wav", math.random(110, 120)

@@ -103,6 +103,21 @@ net.Receive("zs_openclassmenu", UI.OpenClassMenu)
 
 local skillMenu
 
+local GRID_COLS, GRID_ROWS = 3, 5
+local colLocked = Color(70, 70, 70)
+local colLine = Color(200, 200, 200, 90)
+
+-- состояние навыка для отрисовки: owned, available, nopoints, locked
+local function SkillState(class, id)
+	if mySkills[id] then return "owned" end
+
+	local ok, reason = MODE:CanLearnSkill(mySkills, class, id, lply:GetNWInt("ZS_Points", 0))
+	if ok then return "available" end
+	if reason == "points" then return "nopoints" end
+
+	return "locked"
+end
+
 local function BuildSkillGrid(parent, class, info)
 	local tree = MODE.SkillTrees[class] or {}
 
@@ -116,31 +131,89 @@ local function BuildSkillGrid(parent, class, info)
 		return
 	end
 
-	local nodeW, nodeH, gap = 170, 70, 30
+	local pw, ph = parent:GetSize()
+	local gap = 16
+	local nodeW = (pw - gap * (GRID_COLS + 1)) / GRID_COLS
+	local nodeH = (ph - gap * (GRID_ROWS + 1)) / GRID_ROWS
+
+	local function NodeRect(skill)
+		local pos = skill.pos or {x = 0, y = 0}
+		return gap + pos.x * (nodeW + gap), gap + pos.y * (nodeH + gap)
+	end
+
+	-- линии связей между навыками рисуются под карточками
+	local oldPaint = parent.Paint
+	parent.Paint = function(self, w, h)
+		if oldPaint then oldPaint(self, w, h) end
+
+		surface.SetDrawColor(colLine)
+
+		for id, skill in pairs(tree) do
+			local x1, y1 = NodeRect(skill)
+
+			for _, list in ipairs({skill.requires or {}, skill.requiresAny or {}}) do
+				for _, req in ipairs(list) do
+					local other = tree[req]
+
+					if other then
+						local x2, y2 = NodeRect(other)
+						local lit = mySkills[id] and mySkills[req]
+
+						surface.SetDrawColor(lit and (skill.color or info.color) or colLine)
+						surface.DrawLine(x1 + nodeW * 0.5, y1 + nodeH * 0.5, x2 + nodeW * 0.5, y2 + nodeH * 0.5)
+					end
+				end
+			end
+		end
+	end
 
 	for id, skill in SortedPairs(tree) do
-		local pos = skill.pos or {x = 0, y = 0}
+		local x, y = NodeRect(skill)
+		local col = skill.color or info.color
 
 		local node = vgui.Create("DButton", parent)
-		node:SetPos(20 + pos.x * (nodeW + gap), 20 + pos.y * (nodeH + gap))
+		node:SetPos(x, y)
 		node:SetSize(nodeW, nodeH)
 		node:SetText("")
-		node:SetTooltip(skill.desc or "")
+		node:SetTooltip(skill.name .. "\n\n" .. (skill.desc or ""))
 
 		node.Paint = function(self, nw, nh)
-			local owned = mySkills[id]
-			local bg = owned and Darken(info.color, 0.7, 240) or Darken(info.color, self:IsHovered() and 0.35 or 0.2, 240)
+			local state = SkillState(class, id)
+			local main = state == "locked" and colLocked or col
+			local bg
+
+			if state == "owned" then
+				bg = Darken(col, 0.6, 250)
+			elseif state == "available" then
+				bg = Darken(col, self:IsHovered() and 0.4 or 0.25, 250)
+			else
+				bg = Darken(main, 0.15, 250)
+			end
 
 			draw.RoundedBox(6, 0, 0, nw, nh, bg)
-			surface.SetDrawColor(info.color)
-			surface.DrawOutlinedRect(0, 0, nw, nh, owned and 2 or 1)
+			surface.SetDrawColor(main)
+			surface.DrawOutlinedRect(0, 0, nw, nh, (state == "owned" or (state == "available" and self:IsHovered())) and 3 or 1)
 
-			draw.SimpleText(skill.name or id, "ZB_InterfaceMedium", nw * 0.5, nh * 0.35, colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-			draw.SimpleText(owned and "Learned" or ((skill.cost or 0) .. " pts"), "ZB_InterfaceSmall", nw * 0.5, nh * 0.72, owned and colWhite or colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText(skill.name or id, "ZB_InterfaceMedium", nw * 0.5, nh * 0.3, state == "locked" and colGray or colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText(skill.short or "", "ZB_InterfaceSmall", nw * 0.5, nh * 0.58, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+
+			local status
+			if state == "owned" then
+				status = "Изучено"
+			elseif state == "locked" then
+				status = "Недоступно"
+			else
+				status = (skill.cost or 0) .. " очков"
+			end
+
+			draw.SimpleText(status, "ZB_InterfaceSmall", nw * 0.5, nh * 0.82, state == "available" and col or colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		end
 
 		node.DoClick = function()
-			if mySkills[id] then return end
+			if SkillState(class, id) ~= "available" then
+				surface.PlaySound("buttons/button10.wav")
+				return
+			end
 
 			net.Start("zs_buyskill")
 				net.WriteString(id)
@@ -159,7 +232,7 @@ function UI.ToggleSkillTree()
 	if not class then return end
 
 	local info = ZS_ZOMBIE_CLASSES[class]
-	local w, h = math.min(ScrW() * 0.7, 900), math.min(ScrH() * 0.7, 600)
+	local w, h = math.min(ScrW() * 0.85, 1100), math.min(ScrH() * 0.85, 780)
 
 	skillMenu = vgui.Create("DFrame")
 	skillMenu:SetSize(w, h)
@@ -175,9 +248,9 @@ function UI.ToggleSkillTree()
 		surface.SetDrawColor(info.color)
 		surface.DrawOutlinedRect(0, 0, pw, ph, 2)
 
-		draw.SimpleText(info.name .. " skill tree", "ZB_InterfaceMediumLarge", 20, 30, colWhite, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-		draw.SimpleText("Points: " .. lply:GetNWInt("ZS_Points", 0), "ZB_InterfaceMediumLarge", pw - 50, 30, colWhite, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
-		draw.SimpleText("Damage to survivors: 1 pt per HP  |  Eating a corpse: 100 pts  |  I - close", "ZB_InterfaceSmall", pw * 0.5, ph - 16, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Дерево навыков: " .. info.name, "ZB_InterfaceMediumLarge", 20, 30, colWhite, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Очки: " .. lply:GetNWInt("ZS_Points", 0), "ZB_InterfaceMediumLarge", pw - 50, 30, colWhite, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Урон по выжившим: 1 очко за 1 HP  |  Съеденный труп: 100 очков  |  Ветки взаимоисключающие  |  I - закрыть", "ZB_InterfaceSmall", pw * 0.5, ph - 16, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 
 	local body = vgui.Create("DPanel", skillMenu)

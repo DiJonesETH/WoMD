@@ -59,6 +59,11 @@ function ZS_IsZombie(ply)
 	return IsValid(ply) and ZS_ZOMBIE_CLASSES[ply.PlayerClassName] ~= nil
 end
 
+-- навыки дерева класса (режим Zombie Survival), синхронизируются через NWBool
+function ZS_HasSkill(ply, id)
+	return IsValid(ply) and ply:GetNWBool("ZS_Skill_" .. id, false)
+end
+
 local clr_zombie = Color(90, 20, 20)
 
 for className, info in pairs(ZS_ZOMBIE_CLASSES) do
@@ -91,6 +96,13 @@ for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 			self:Give("weapon_hands_sh")
 		end
 		self:SelectWeapon("weapon_hands_sh")
+
+		-- эффекты навыков после того, как homigrad выставит хитбокс игрока при спавне
+		timer.Simple(0.2, function()
+			if IsValid(self) and self.PlayerClassName == className then
+				hook.Run("ZS_ApplySkillEffects", self)
+			end
+		end)
 	end
 
 	function CLASS.Off(self)
@@ -99,6 +111,8 @@ for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 		self:SetMaterial("")
 		self:SetNWString("ZS_Visual", "")
 		self.MeleeDamageMul = nil
+
+		hook.Run("ZS_ClearSkillEffects", self)
 
 		hg.ClearArmorRestrictions(self)
 	end
@@ -124,8 +138,8 @@ for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 		local org = self.organism
 		if not org then return end
 
-		org.stamina["max"] = 200
-		org.stamina["range"] = 200
+		org.stamina["max"] = self.zs_StaminaMax or 200
+		org.stamina["range"] = self.zs_StaminaMax or 200
 
 		if org.consciousness <= 0.3 then
 			org.consciousness = 1
@@ -190,7 +204,7 @@ hook.Add("HG_MovementCalc_2", "ZS_ZombieSpeed", function(mul, ply, cmd, mv)
 	if not ZS_IsZombie(ply) then return end
 
 	local info = ZS_ZOMBIE_CLASSES[ply.PlayerClassName]
-	mul[1] = info.speed * (ply:IsSprinting() and 1.2 or 0.9)
+	mul[1] = info.speed * ply:GetNWFloat("ZS_SpeedMul", 1) * (ply:IsSprinting() and 1.2 or 0.9)
 
 	if ply.SpeedGainMul ~= 70 then
 		ply.SpeedGainMul = 70
@@ -249,6 +263,7 @@ if SERVER then
 
 		ragdoll:SetMaterial("NULL")
 		ragdoll:SetNWString("ZS_Visual", ply:GetNWString("ZS_Visual"))
+		ragdoll:SetNWBool("ZS_Black", ply:GetNWBool("ZS_Black", false))
 	end)
 
 	-- живучесть класса
@@ -256,7 +271,7 @@ if SERVER then
 		local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
 		if not ZS_IsZombie(ply) then return end
 
-		dmgInfo:ScaleDamage(ZS_ZOMBIE_CLASSES[ply.PlayerClassName].damageTaken)
+		dmgInfo:ScaleDamage(ZS_ZOMBIE_CLASSES[ply.PlayerClassName].damageTaken * (ply.zs_DamageTakenMul or 1))
 	end)
 
 	local function HealOrganism(org, amount)
@@ -319,6 +334,7 @@ else
 
 	local tracked = {}
 	local nextScan = 0
+	local colBlack = Color(12, 12, 12)
 
 	local function ScanVisuals()
 		for _, ent in player.Iterator() do
@@ -357,6 +373,13 @@ else
 			end
 
 			visual:SetNoDraw(hide)
+
+			-- автолиз: гниющая черная плоть
+			if ent:GetNWBool("ZS_Black", false) then
+				visual:SetColor(colBlack)
+			else
+				visual:SetColor(color_white)
+			end
 		end
 	end)
 

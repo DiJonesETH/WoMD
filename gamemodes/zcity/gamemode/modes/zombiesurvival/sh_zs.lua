@@ -34,18 +34,140 @@ MODE.EatTime = 6
 MODE.EatDistance = 90
 MODE.SkeletonModel = "models/player/skeleton.mdl"
 
--- Деревья навыков классов зараженных (пока без навыков). Формат навыка:
+-- Деревья навыков классов зараженных. Формат навыка:
 -- MODE.SkillTrees.zs_bruiser.some_skill = {
 -- 	name = "Name", desc = "Description", cost = 100,
--- 	requires = {"other_skill"}, -- необязательно
--- 	pos = {x = 0, y = 0}, -- место в сетке дерева
+-- 	short = "Короткая строка на карточке", -- необязательно
+-- 	requires = {"other_skill"}, -- нужны все, необязательно
+-- 	requiresAny = {"a", "b"}, -- нужен любой из, необязательно
+-- 	branch = "left", -- навыки разных веток одного дерева взаимоисключающие
+-- 	auto = true, -- выдается бесплатно при выборе класса
+-- 	color = Color(...), -- свой цвет карточки, необязательно
+-- 	pos = {x = 0, y = 0}, -- место в сетке дерева (3 колонки x 5 рядов, y = 0 сверху)
 -- 	OnBuy = function(ply) end, -- серверный эффект, необязательно
 -- }
-MODE.SkillTrees = MODE.SkillTrees or {
+-- Эффекты навыков agile: sh_zs_agile.lua
+MODE.SkillTrees = {
 	zs_bruiser = {},
-	zs_agile = {},
+	zs_agile = {
+		autophagy = {
+			name = "Аутофагия",
+			desc = "Организм зараженного перерабатывает его тело для получения энергии.\n+ Вы заметно повышаете свою скорость и стамину\n- Ваша выживаемость снижается",
+			short = "+скорость, +стамина, -живучесть",
+			cost = 0,
+			auto = true,
+			pos = {x = 1, y = 4},
+		},
+		dash = {
+			name = "Рывок",
+			desc = "Стимуляция вирусом надпочечников позволяет зараженному делать мощные рывки.\n+ Нажмите E+M1 чтобы совершить рывок и сбить противника с ног",
+			short = "E+M1: рывок, сбивает с ног",
+			cost = 200,
+			branch = "left",
+			requires = {"autophagy"},
+			pos = {x = 0, y = 3},
+		},
+		clinging_claws = {
+			name = "Цепкие когти",
+			desc = "Мышцы рук и кистей зараженного укрепляются.\n+ Теперь вы можете залезать на стены, а также зависать на них\n(у стены: прыжок - лезть вверх, присед - зависнуть)",
+			short = "лазание и зависание на стенах",
+			cost = 300,
+			branch = "left",
+			requires = {"dash"},
+			pos = {x = 0, y = 2},
+		},
+		lethal_grab = {
+			name = "Летальный захват",
+			desc = "Зараженный впадает в яростную атаку на упавших игроков.\n+ Схватившись двумя руками за выжившего в регдолле, вы наносите серию беспорядочных режущих ударов до самой смерти\n(удерживайте E+M2, глядя на упавшего выжившего)",
+			short = "E+M2: терзать упавшего",
+			cost = 600,
+			branch = "left",
+			requires = {"clinging_claws"},
+			pos = {x = 0, y = 1},
+		},
+		hyperdontia = {
+			name = "Гипердонтия",
+			desc = "Вирус видоизменяет структуру челюсти и зубов зараженного.\n+ Нажмите E+M1 чтобы совершить укус, наносящий глубокий проникающий урон",
+			short = "E+M1: проникающий укус",
+			cost = 200,
+			branch = "right",
+			requires = {"autophagy"},
+			pos = {x = 2, y = 3},
+		},
+		foot_growths = {
+			name = "Стопные наросты",
+			desc = "Вирус развивает хрящевые наросты на стопах зараженного.\n+ Ваше передвижение бесшумно",
+			short = "бесшумные шаги",
+			cost = 300,
+			branch = "right",
+			requires = {"hyperdontia"},
+			pos = {x = 2, y = 2},
+		},
+		autolysis = {
+			name = "Автолиз",
+			desc = "Организм зараженного экстремально истощается, уменьшаясь в размерах в несколько раз.\n+ Вы становитесь в 2 раза меньше, ваша плоть гниет, снижая контрастность в темноте",
+			short = "в 2 раза меньше, черная плоть",
+			cost = 600,
+			branch = "right",
+			requires = {"foot_growths"},
+			pos = {x = 2, y = 1},
+		},
+		homeostasis = {
+			name = "Высший гомеостаз",
+			desc = "Организм зараженного лишается критически важных органов, все функции работают на максимальную мощность.\n+ Вас ЗНАЧИТЕЛЬНО сложнее убить, смерть мозга считается фатальной\n+ Скорость всех действий значительно увеличена",
+			short = "без боли и органов, быстрее",
+			cost = 1000,
+			requiresAny = {"lethal_grab", "autolysis"},
+			color = Color(230, 180, 40),
+			pos = {x = 1, y = 0},
+		},
+	},
 	zs_metaboliser = {},
 }
+
+-- все id навыков всех деревьев (для сброса)
+function MODE:GetAllSkillIds()
+	local ids = {}
+
+	for _, tree in pairs(self.SkillTrees) do
+		for id in pairs(tree) do
+			ids[id] = true
+		end
+	end
+
+	return ids
+end
+
+-- можно ли купить навык; reason - причина отказа
+function MODE:CanLearnSkill(owned, class, id, points)
+	local tree = self.SkillTrees[class]
+	local skill = tree and tree[id]
+	if not skill then return false, "unknown" end
+	if owned[id] then return false, "owned" end
+
+	for _, req in ipairs(skill.requires or {}) do
+		if not owned[req] then return false, "requires" end
+	end
+
+	if skill.requiresAny then
+		local any = false
+		for _, req in ipairs(skill.requiresAny) do
+			if owned[req] then any = true break end
+		end
+		if not any then return false, "requires" end
+	end
+
+	if skill.branch then
+		for otherId in pairs(owned) do
+			local other = tree[otherId]
+			if other and other.branch and other.branch ~= skill.branch then return false, "branch" end
+		end
+	end
+
+	if points and points < (skill.cost or 0) then return false, "points" end
+
+	return true
+end
 
 function MODE:GetPlayerZombieClass(ply)
 	local class = ply:GetNWString("ZS_Class", "")
