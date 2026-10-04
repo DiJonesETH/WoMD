@@ -442,7 +442,7 @@ local function BacterialSeeding(ply)
 	Notify(ply, "Посев: союзник лечится " .. SEED_TIME .. " сек.")
 end
 
--- Питательная среда (CTRL+R) и стадные феромоны (ALT+R)
+-- Питательная среда и стадные феромоны (CTRL+R)
 -- CTRL+R раз за жизнь: один обычный зомби, а со стадными феромонами вместо него три быстрых
 local function SpawnNutrientNPC(ply)
 	if ply.zs_NutrientUsed then return end
