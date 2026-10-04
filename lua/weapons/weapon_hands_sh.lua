@@ -63,6 +63,19 @@ local zsClawClasses = {
 	["zs_metaboliser"] = true
 }
 
+local zsUseAttackSkills = {"dash", "hyperdontia", "mass_impulse", "ballistic_growths", "nest"}
+local zsUseAttack2Skills = {"guillotine", "reflux", "meat_mycelium"}
+
+local function ZSHasAnySkill(owner, list)
+	if not ZS_HasSkill then return false end
+
+	for _, id in ipairs(list) do
+		if ZS_HasSkill(owner, id) then return true end
+	end
+
+	return false
+end
+
 -- навык "Бросок" (bruiser): предмет берется на M2 при поднятых когтях и бросается на M1
 local function ZSThrower(owner)
 	return IsValid(owner) and zsClawClasses[owner.PlayerClassName] and ZS_HasSkill and ZS_HasSkill(owner, "throw")
@@ -784,8 +797,8 @@ function SWEP:SecondaryAttack()
 		self:PrimaryAttack(true)
 	end
 
-	-- E+M2 у зараженного с гильотиной занят навыком
-	if zsClawClasses[owner.PlayerClassName] and owner:KeyDown(IN_USE) and ZS_HasSkill and ZS_HasSkill(owner, "guillotine") then return end
+	-- E+M2 у зараженного занят навыками (гильотина, рефлюкс, мясной мицелий)
+	if zsClawClasses[owner.PlayerClassName] and owner:KeyDown(IN_USE) and ZSHasAnySkill(owner, zsUseAttack2Skills) then return end
 	if self:GetFists() --[[and owner.PlayerClassName ~= "headcrabzombie"]] and not ZSThrower(owner) then return end
 	--[[if self:GetFists() and owner.PlayerClassName == "headcrabzombie" then
 		self:SetFists(false)
@@ -1420,8 +1433,8 @@ end
 function SWEP:PrimaryAttack(forcespecial)
 	local owner = self:GetOwner()
 	if not IsValid(owner) or owner:InVehicle() then return end
-	-- E+M1 у зараженных Zombie Survival занят навыками (рывок, укус, импульс массы)
-	if zsClawClasses[owner.PlayerClassName] and owner:KeyDown(IN_USE) and ZS_HasSkill and (ZS_HasSkill(owner, "dash") or ZS_HasSkill(owner, "hyperdontia") or ZS_HasSkill(owner, "mass_impulse")) then return end
+	-- E+M1 у зараженных Zombie Survival занят навыками (рывок, укус, импульс массы, шип, гнездо)
+	if zsClawClasses[owner.PlayerClassName] and owner:KeyDown(IN_USE) and ZSHasAnySkill(owner, zsUseAttackSkills) then return end
 
 	-- бросок удерживаемого предмета
 	if ZSThrower(owner) and owner:KeyDown(IN_ATTACK2) and IsValid(ZSCarryEnt(self, owner)) then

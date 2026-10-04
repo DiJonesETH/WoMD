@@ -61,6 +61,27 @@ net.Receive("zs_roundend", function()
 	end
 end)
 
+-- гнездо metaboliser, на которое смотрит наблюдатель
+local function GetAimedNest()
+	local origin, dir = EyePos(), EyeVector()
+	local best, bestDot
+
+	for _, nest in ipairs(ents.FindByClass("zs_nest")) do
+		local to = nest:GetPos() + Vector(0, 0, 16) - origin
+		local dist = to:Length()
+
+		if dist < 3000 then
+			local dot = dir:Dot(to:GetNormalized())
+
+			if dot > 0.97 and (not bestDot or dot > bestDot) then
+				best, bestDot = nest, dot
+			end
+		end
+	end
+
+	return best
+end
+
 local function FormatTime(seconds)
 	seconds = math.max(math.ceil(seconds), 0)
 
@@ -102,6 +123,10 @@ local function DrawRespawnHint()
 
 	if not MODE.InfectedUI.GetClass() then
 		text, active = "Press E to choose your infection", true
+	elseif active and IsValid(GetAimedNest()) then
+		text = "Press E to rise from the nest"
+	elseif active and #ents.FindByClass("zs_nest") > 0 then
+		text = "Press E to rise as an infected (look at a nest to rise there)"
 	end
 
 	draw.SimpleText(text, "ZB_InterfaceMediumLarge", ScrW() * 0.5 + 2, ScrH() * 0.85 + 2, colShadow, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
@@ -143,6 +168,7 @@ function MODE:Think()
 			MODE.InfectedUI.OpenClassMenu()
 		else
 			net.Start("zs_requestspawn")
+				net.WriteEntity(GetAimedNest() or NULL)
 			net.SendToServer()
 		end
 	end

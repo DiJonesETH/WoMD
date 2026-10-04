@@ -114,14 +114,15 @@ local function GetZombieSpawnPos(ply)
 	return zb:GetRandomSpawn(ply)
 end
 
-local function SpawnZombie(mode, ply)
+local function SpawnZombie(mode, ply, nest)
 	ply:SetTeam(TEAM_INFECTED)
 	ply:Spawn()
 
 	hg.CreateInv(ply)
 	ply:SetPlayerClass(ply.zs_Class)
 
-	local pos = GetZombieSpawnPos(ply)
+	-- гнездо metaboliser - альтернативная точка спавна
+	local pos = IsValid(nest) and nest:GetSpawnPos() or GetZombieSpawnPos(ply)
 	if pos then
 		ply:SetPos(pos)
 	end
@@ -313,7 +314,7 @@ function MODE:PlayerDeath(ply)
 	end
 end
 
-local function TrySpawnZombie(mode, ply)
+local function TrySpawnZombie(mode, ply, nest)
 	if zb.ROUND_STATE ~= 1 then return end
 	if ply:Alive() then return end
 
@@ -327,7 +328,7 @@ local function TrySpawnZombie(mode, ply)
 	-- класс выбирается один раз на весь подраунд
 	if not mode.Infected.EnsureClass(ply) then return end
 
-	SpawnZombie(mode, ply)
+	SpawnZombie(mode, ply, nest)
 end
 
 -- Нажатия мертвых игроков ловит клиент (как выбор цели в наблюдателе в cl_init.lua) и присылает запрос на спавн по E
@@ -338,7 +339,11 @@ net.Receive("zs_requestspawn", function(len, ply)
 	local mode = CurrentRound()
 	if not mode or mode.name ~= "zs" then return end
 
-	TrySpawnZombie(mode, ply)
+	-- наблюдатель может навестись на гнездо зараженных и появиться у него
+	local nest = net.ReadEntity()
+	if not IsValid(nest) or nest:GetClass() ~= "zs_nest" then nest = nil end
+
+	TrySpawnZombie(mode, ply, nest)
 end)
 
 -- боты возрождаются сами

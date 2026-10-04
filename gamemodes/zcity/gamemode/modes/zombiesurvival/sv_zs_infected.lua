@@ -52,6 +52,7 @@ function Infected.Reset()
 	for _, ply in player.Iterator() do
 		ply.zs_Class = nil
 		Infected.ClearSkills(ply)
+		hook.Run("ZS_RoundReset", ply)
 		ply.zs_EatTarget = nil
 
 		ply:SetNWString("ZS_Class", "")

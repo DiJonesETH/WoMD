@@ -284,6 +284,12 @@ function UI.DrawHUD(x, y)
 		draw.SimpleText(info.name .. "  |  " .. lply:GetNWInt("ZS_Points", 0) .. " pts  [I]", "ZB_InterfaceMedium", x + ScreenScale(5), y + h * 0.5, info.color, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 	end
 
+	-- метановая избыточность готова к взрыву
+	if lply:Alive() and lply:GetNWBool("ZS_MethaneReady", false) then
+		local pulse = math.abs(math.sin(CurTime() * 4))
+		draw.SimpleText("R - взорвать тело кислотой", "ZB_InterfaceMediumLarge", ScrW() * 0.5, ScrH() * 0.75, Color(225, 210, 40, 120 + 135 * pulse), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	end
+
 	-- прогресс поедания
 	local eatEnd = lply:GetNWFloat("ZS_EatEnd", 0)
 
