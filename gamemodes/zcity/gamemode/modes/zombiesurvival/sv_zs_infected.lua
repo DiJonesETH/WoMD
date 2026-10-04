@@ -337,3 +337,33 @@ hook.Add("PlayerInitialSpawn", "ZS_SyncInfected", function(ply)
 	ply:SetNWInt("ZS_Points", 0)
 	ply:SetNWString("ZS_Class", "")
 end)
+
+-- zb_givezombiepoints <количество> [ник] - выдать скилл-очки зараженного (себе, если ник не указан)
+concommand.Add("zb_givezombiepoints", function(ply, cmd, args)
+	if IsValid(ply) and not ply:IsAdmin() then
+		ply:ChatPrint("You don't have access")
+		return
+	end
+
+	local amount = tonumber(args[1])
+	if not amount then
+		local msg = "Usage: zb_givezombiepoints <amount> [player]"
+		if IsValid(ply) then ply:ChatPrint(msg) else print(msg) end
+		return
+	end
+
+	local targets = {}
+
+	if args[2] then
+		targets = player.GetListByName(args[2])
+	elseif IsValid(ply) then
+		targets = {ply}
+	end
+
+	for _, target in ipairs(targets) do
+		target:SetNWInt("ZS_Points", math.max(target:GetNWInt("ZS_Points", 0) + math.floor(amount), 0))
+
+		local msg = "Zombie skill points of " .. target:Nick() .. ": " .. target:GetNWInt("ZS_Points", 0)
+		if IsValid(ply) then ply:ChatPrint(msg) else print(msg) end
+	end
+end)

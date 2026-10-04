@@ -49,18 +49,7 @@ hook.Add("Think", "ZS_AgileAutolysisSize", function()
 	end
 end)
 
--- Стопные наросты: бесшумное передвижение
-hook.Add("HG_PlayerFootstep", "ZS_AgileSilentSteps", function(ply)
-	if IsLivingZombie(ply) and ZS_HasSkill(ply, "foot_growths") then
-		return true
-	end
-end)
-
-hook.Add("PlayerFootstep", "ZS_AgileSilentSteps", function(ply)
-	if IsLivingZombie(ply) and ZS_HasSkill(ply, "foot_growths") then
-		return true
-	end
-end)
+-- Стопные наросты (бесшумные шаги) обрабатываются в HG_PlayerFootstep в sh_zs_zombie.lua
 
 -- Цепкие когти: у стены в воздухе прыжок - лезть вверх, присед - зависнуть
 local CLIMB_SPEED = 190
@@ -139,41 +128,79 @@ end)
 hook.Add("ZS_ClearSkillEffects", "ZS_AgileSkills", StatsDefaults)
 
 -- Высший гомеостаз: без боли и органов, убивает только смерть мозга
-local organs = {"heart", "liver", "stomach", "intestines", "lungsL", "lungsR", "trachea", "chest", "pelvis", "spine1", "spine2", "spine3"}
+-- (по образцу regenerationberserk из sv_organism.lua, который включает weapon_fury13, но без постепенности)
+local numberOrgans = {
+	"heart", "liver", "stomach", "intestines", "trachea", "pneumothorax", "chest", "pelvis", "jaw",
+	"spine1", "spine2", "spine3", "lleg", "rleg", "larm", "rarm",
+	"arteria", "rarmartery", "larmartery", "rlegartery", "llegartery", "spineartery",
+}
 
-hook.Add("Org Think", "ZS_AgileHomeostasis", function(owner, org)
-	if not IsLivingZombie(owner) or not ZS_HasSkill(owner, "homeostasis") then return end
+local zeroStats = {
+	"pain", "avgpain", "painadd", "hurt", "hurtadd", "shock", "shock_turn", "immobilization", "disorientation",
+	"stun", "bleed", "internalBleed", "hemotransfusionshock", "CO", "fear", "fearadd", "wantToVomit", "hungry",
+}
 
-	org.pain = 0
-	org.avgpain = 0
-	org.painadd = 0
-	org.shock = 0
-	org.hurt = 0
-	org.immobilization = 0
+local function ApplyHomeostasis(org)
+	for _, key in ipairs(numberOrgans) do
+		if isnumber(org[key]) then org[key] = 0 end
+	end
 
-	org.blood = 5000
-	org.bleed = 0
-	org.internalBleed = 0
+	for _, key in ipairs(zeroStats) do
+		if isnumber(org[key]) then org[key] = 0 end
+	end
+
+	for _, key in ipairs({"lungsL", "lungsR"}) do
+		local lung = org[key]
+		if istable(lung) then lung[1], lung[2] = 0, 0 end
+	end
 
 	for _, wound in pairs(org.wounds or {}) do wound[1] = 0 end
 	for _, wound in pairs(org.arterialwounds or {}) do wound[1] = 0 end
 
-	for _, organ in ipairs(organs) do
-		if isnumber(org[organ]) then org[organ] = 0 end
-	end
-
+	org.blood = 5000
 	org.heartstop = false
 	org.lungsfunction = true
 	org.pulse = 70
-	org.temperature = 36.6
+	org.heartbeat = 70
+	org.temperature = 36.7
 
 	if org.o2 then org.o2[1] = org.o2.range or 30 end
+	if org.stamina then org.stamina[1] = org.stamina.max or org.stamina[1] end
 
 	org.consciousness = 1
 	org.otrub = false
 	org.needotrub = false
+	org.needfake = false
 	org.critical = false
 	org.incapacitated = false
+
+	org.llegdislocation = false
+	org.rlegdislocation = false
+	org.larmdislocation = false
+	org.rarmdislocation = false
+	org.jawdislocation = false
+	-- org.brain и org.skull не трогаем: смерть мозга остается фатальной
+end
+
+local function HasHomeostasis(ply)
+	return IsLivingZombie(ply) and ZS_HasSkill(ply, "homeostasis") and ply.organism
+end
+
+hook.Add("Org Think", "ZS_AgileHomeostasis", function(owner, org)
+	local ply = IsValid(owner) and (owner:IsPlayer() and owner or hg.RagdollOwner(owner))
+	if HasHomeostasis(ply) then ApplyHomeostasis(ply.organism) end
+end)
+
+-- сразу после урона, чтобы боль и шок не успевали сработать до следующего тика организма
+hook.Add("HomigradDamage", "ZS_AgileHomeostasis", function(ent)
+	local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
+	if HasHomeostasis(ply) then ApplyHomeostasis(ply.organism) end
+end)
+
+hook.Add("Think", "ZS_AgileHomeostasis", function()
+	for _, ply in player.Iterator() do
+		if HasHomeostasis(ply) then ApplyHomeostasis(ply.organism) end
+	end
 end)
 
 -- E+M1: рывок (левая ветка) или укус (правая ветка)
@@ -189,7 +216,9 @@ local function Dash(ply)
 	dir:Normalize()
 
 	ply:SetVelocity(dir * DASH_FORCE + Vector(0, 0, ply:OnGround() and 180 or 60))
-	ply:EmitSound("npc/fast_zombie/leap1.wav", 75, math.random(95, 105))
+	-- как у ванильного fast zombie: звук прыжка и крик
+	ply:EmitSound("npc/fast_zombie/leap1.wav", 80, math.random(95, 105))
+	ply:EmitSound("npc/fast_zombie/fz_scream1.wav", 85, math.random(95, 105))
 
 	ply.zs_DashUntil = CurTime() + DASH_TIME
 	ply.zs_DashDir = dir
@@ -287,49 +316,37 @@ hook.Add("KeyPress", "ZS_AgileAbilities", function(ply, key)
 	end
 end)
 
--- Летальный захват: E+M2 по упавшему выжившему - серия режущих ударов до смерти
-local GRAB_INTERVAL, GRAB_RANGE = 0.25, 85
+-- Летальный захват: зараженный в регдолле держит обеими руками регдолл живого выжившего - удары идут автоматически
+-- (хваты рук - weld-констрейнты ConsLH/ConsRH регдолла, см. fake/sv_control.lua)
+local GRAB_INTERVAL = 0.25
 
-local function FindGrabTarget(ply)
-	local eye = ply:EyePos()
+local function GetGrabbedSurvivor(ply)
+	local ragdoll = ply.FakeRagdoll
+	if not IsValid(ragdoll) then return end
 
-	local tr = util.TraceLine({
-		start = eye,
-		endpos = eye + ply:GetAimVector() * GRAB_RANGE,
-		filter = {ply, ply.FakeRagdoll},
-		mask = MASK_SHOT,
-	})
+	local left, right = ragdoll.ConsLH, ragdoll.ConsRH
+	if not IsValid(left) or not IsValid(right) then return end
 
-	local ragdoll = tr.Entity
-	local victim = IsValid(ragdoll) and ragdoll:GetClass() == "prop_ragdoll" and hg.RagdollOwner(ragdoll)
+	local target = left.Ent2
+	if not IsValid(target) or target ~= right.Ent2 or target:GetClass() ~= "prop_ragdoll" then return end
 
-	if IsLivingSurvivor(victim) and victim.FakeRagdoll == ragdoll then
-		return victim, ragdoll
+	local victim = hg.RagdollOwner(target)
+	if IsLivingSurvivor(victim) and victim.FakeRagdoll == target then
+		return victim, target
 	end
 end
 
 local function GrabThink(ply)
-	local holding = ZS_HasSkill(ply, "lethal_grab") and ply:KeyDown(IN_USE) and ply:KeyDown(IN_ATTACK2) and not IsValid(ply.FakeRagdoll)
+	if not ZS_HasSkill(ply, "lethal_grab") then return end
 
-	if not holding then
-		ply.zs_GrabVictim = nil
-		return
-	end
+	local victim, target = GetGrabbedSurvivor(ply)
+	if not victim then return end
 
-	local victim = ply.zs_GrabVictim
-	local ragdoll = IsLivingSurvivor(victim) and victim.FakeRagdoll
-
-	if not IsValid(ragdoll) or ragdoll:GetPos():Distance(ply:EyePos()) > GRAB_RANGE + 40 then
-		victim, ragdoll = FindGrabTarget(ply)
-		ply.zs_GrabVictim = victim
-	end
-
-	if not IsValid(ragdoll) then return end
 	if (ply.zs_NextGrabHit or 0) > CurTime() then return end
 	ply.zs_NextGrabHit = CurTime() + GRAB_INTERVAL * ply:GetNWFloat("ZS_AttackMul", 1)
 
-	local phys = ragdoll:GetPhysicsObjectNum(math.random(0, ragdoll:GetPhysicsObjectCount() - 1))
-	local pos = IsValid(phys) and phys:GetPos() or ragdoll:GetPos()
+	local phys = target:GetPhysicsObjectNum(math.random(0, target:GetPhysicsObjectCount() - 1))
+	local pos = IsValid(phys) and phys:GetPos() or target:GetPos()
 
 	local dmg = DamageInfo()
 	dmg:SetAttacker(ply)
@@ -338,7 +355,7 @@ local function GrabThink(ply)
 	dmg:SetDamageType(DMG_SLASH)
 	dmg:SetDamageForce(VectorRand() * 50)
 	dmg:SetDamagePosition(pos)
-	ragdoll:TakeDamageInfo(dmg)
+	target:TakeDamageInfo(dmg)
 
 	sound.Play("npc/zombie/claw_strike" .. math.random(3) .. ".wav", pos, 70, math.random(90, 110))
 	util.Decal("Blood", pos + Vector(0, 0, 8), pos - Vector(0, 0, 16))
@@ -354,7 +371,6 @@ hook.Add("Think", "ZS_AgileAbilitiesThink", function()
 	for _, ply in player.Iterator() do
 		if not IsLivingZombie(ply) then
 			ply.zs_DashUntil = nil
-			ply.zs_GrabVictim = nil
 			continue
 		end
 

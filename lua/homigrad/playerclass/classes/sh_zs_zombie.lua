@@ -18,6 +18,12 @@ ZS_ZOMBIE_CLASSES = {
 		viewModel = "models/weapons/v_pza.mdl",
 		viewModelFOV = 47,
 		viewModelHiddenBones = {"ValveBiped.HC5_Bodybox"}, -- хедкраб в руке
+		sounds = {
+			steps = {"npc/zombie_poison/pz_left_foot1.wav", "npc/zombie_poison/pz_right_foot1.wav"},
+			pain = {"npc/zombie_poison/pz_pain1.wav", "npc/zombie_poison/pz_pain2.wav", "npc/zombie_poison/pz_pain3.wav"},
+			death = {"npc/zombie_poison/pz_die1.wav", "npc/zombie_poison/pz_die2.wav"},
+			idle = {"npc/zombie_poison/pz_idle2.wav", "npc/zombie_poison/pz_idle3.wav", "npc/zombie_poison/pz_idle4.wav", "npc/zombie_poison/pz_alert1.wav", "npc/zombie_poison/pz_alert2.wav"},
+		},
 		color = Color(50, 110, 230),
 		speed = 0.85,
 		damageTaken = 0.6,
@@ -31,6 +37,12 @@ ZS_ZOMBIE_CLASSES = {
 		model = "models/player/zombie_fast.mdl",
 		viewModel = "models/weapons/v_fza.mdl",
 		viewModelFOV = 70,
+		sounds = {
+			steps = {"npc/fast_zombie/foot1.wav", "npc/fast_zombie/foot2.wav", "npc/fast_zombie/foot3.wav", "npc/fast_zombie/foot4.wav"},
+			pain = {"NPC_FastZombie.Pain"},
+			death = {"NPC_FastZombie.Die"},
+			idle = {"npc/fast_zombie/idle1.wav", "npc/fast_zombie/idle2.wav", "npc/fast_zombie/idle3.wav", "npc/fast_zombie/fz_alert_close1.wav", "npc/fast_zombie/fz_frenzy1.wav"},
+		},
 		color = Color(220, 50, 50),
 		speed = 1.3,
 		damageTaken = 1.25,
@@ -44,6 +56,13 @@ ZS_ZOMBIE_CLASSES = {
 		model = "models/player/zombie_classic_hbfix.mdl",
 		viewModel = "models/weapons/v_zombiearms.mdl",
 		viewModelFOV = 70,
+		sounds = {
+			steps = {"npc/zombie/foot1.wav", "npc/zombie/foot2.wav", "npc/zombie/foot3.wav"},
+			scuffs = {"npc/zombie/foot_slide1.wav", "npc/zombie/foot_slide2.wav", "npc/zombie/foot_slide3.wav"},
+			pain = {"npc/zombie/zombie_pain1.wav", "npc/zombie/zombie_pain2.wav", "npc/zombie/zombie_pain3.wav", "npc/zombie/zombie_pain4.wav", "npc/zombie/zombie_pain5.wav", "npc/zombie/zombie_pain6.wav"},
+			death = {"npc/zombie/zombie_die1.wav", "npc/zombie/zombie_die2.wav", "npc/zombie/zombie_die3.wav"},
+			idle = {"npc/zombie/zombie_voice_idle1.wav", "npc/zombie/zombie_voice_idle2.wav", "npc/zombie/zombie_voice_idle3.wav", "npc/zombie/zombie_voice_idle4.wav", "npc/zombie/zombie_alert1.wav", "npc/zombie/zombie_alert2.wav", "npc/zombie/zombie_alert3.wav"},
+		},
 		color = Color(60, 200, 80),
 		speed = 1,
 		damageTaken = 1,
@@ -154,23 +173,18 @@ for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 	end
 end
 
-local zomb_pain = {"npc/zombie/zombie_die2.wav"}
-for i = 1, 6 do
-	table.insert(zomb_pain, "npc/zombie/zombie_pain" .. i .. ".wav")
+function ZS_ZombieSound(ply, kind)
+	local info = ZS_ZOMBIE_CLASSES[ply.PlayerClassName]
+	local list = info and info.sounds and info.sounds[kind]
+	return list and list[math.random(#list)]
 end
 
-local zomb_phrases = {}
-for i = 1, 3 do
-	table.insert(zomb_phrases, "npc/zombie/zombie_alert" .. i .. ".wav")
-end
-for i = 1, 14 do
-	table.insert(zomb_phrases, "npc/zombie/zombie_voice_idle" .. i .. ".wav")
-end
-
+-- фразы и стоны звучат голосом зомби своего класса
 hook.Add("HG_ReplacePhrase", "ZS_ZombiePhrases", function(ply, phrase, muffed, pitch)
 	if ZS_IsZombie(ply) then
 		local inpain = ply.organism and ply.organism.pain > 30
-		local phr = inpain and zomb_pain[math.random(#zomb_pain)] or zomb_phrases[math.random(#zomb_phrases)]
+		local phr = ZS_ZombieSound(ply, inpain and "pain" or "idle")
+		if not phr or not string.EndsWith(phr, ".wav") then phr = ZS_ZombieSound(ply, "idle") end
 
 		return ply, phr, not inpain, pitch
 	end
@@ -231,6 +245,48 @@ hook.Add("CalcMainActivity", "ZS_ZombieAnims", function(ply, vel)
 end)
 
 if SERVER then
+	-- шаги ванильного зомби своего класса; навык "стопные наросты" делает их беззвучными
+	hook.Add("HG_PlayerFootstep", "ZS_ZombieFootsteps", function(ply, pos, foot)
+		if not ZS_IsZombie(ply) or not ply:Alive() then return end
+		if ZS_HasSkill(ply, "foot_growths") then return true end
+
+		local info = ZS_ZOMBIE_CLASSES[ply.PlayerClassName]
+		local sounds = info.sounds or {}
+		local chr = hg.GetCurrentCharacter(ply)
+		local list = sounds.steps
+
+		if sounds.scuffs and math.random() < 0.15 then
+			list = sounds.scuffs
+		end
+
+		if list then
+			local snd = (#list == 2 and list[foot == 0 and 1 or 2]) or list[math.random(#list)]
+			chr:EmitSound(snd, (ply:Crouching() or ply:KeyDown(IN_WALK)) and 60 or 70, math.random(95, 105))
+		end
+
+		return true
+	end)
+
+	-- боль и смерть голосом своего класса
+	hook.Add("HomigradDamage", "ZS_ZombiePainSound", function(ent, dmgInfo)
+		local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
+		if not ZS_IsZombie(ply) or not ply:Alive() then return end
+		if (ply.zs_NextPainSound or 0) > CurTime() then return end
+
+		local snd = ZS_ZombieSound(ply, "pain")
+		if not snd then return end
+
+		ply.zs_NextPainSound = CurTime() + math.Rand(0.5, 0.9)
+		hg.GetCurrentCharacter(ply):EmitSound(snd, 75, math.random(95, 105))
+	end)
+
+	hook.Add("DoPlayerDeath", "ZS_ZombieDeathSound", function(ply)
+		if not ZS_IsZombie(ply) then return end
+
+		local snd = ZS_ZombieSound(ply, "death")
+		if snd then ply:EmitSound(snd, 80, math.random(95, 105)) end
+	end)
+
 	resource.AddFile("models/player/zombie_classic_hbfix.mdl")
 	resource.AddFile("models/weapons/v_zombiearms.mdl")
 	resource.AddFile("models/weapons/v_fza.mdl")
