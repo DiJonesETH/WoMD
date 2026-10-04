@@ -145,6 +145,28 @@ hook.Add("CalcMainActivity", "ZS_ZombieAnims", function(ply, vel)
 end)
 
 if CLIENT then
+	local hg_thirdperson = GetConVar("hg_thirdperson")
+	local vecHidden = Vector(0.01, 0.01, 0.01)
+	local hiddenBones = {"ValveBiped.Bip01_Neck1", "ValveBiped.Bip01_Head1"}
+
+	-- голова этой модели не привязана к Bip01_Head1, поэтому стандартное скрытие головы в первом лице не срабатывает
+	-- и камера оказывается внутри меша (черный экран). Сжимаем шею вместе с дочерними костями перед отрисовкой модели
+	hook.Add("CoolPostDrawAppearance", "ZS_ZombieHideHead", function(ent, ply)
+		if ply ~= lply or ent ~= ply or ply.PlayerClassName ~= "zs_zombie" then return end
+		if GetViewEntity() ~= ply or (hg_thirdperson and hg_thirdperson:GetBool()) then return end
+
+		for _, boneName in ipairs(hiddenBones) do
+			local bone = ent:LookupBone(boneName)
+			local mat = bone and ent:GetBoneMatrix(bone)
+
+			if mat then
+				mat:SetScale(vecHidden)
+				hg.bone_apply_matrix(ent, bone, mat)
+				break
+			end
+		end
+	end)
+
 	-- у модели зомби голова опущена вперед, камеру переносим к верху торса (как у headcrabzombie)
 	hook.Add("HGAddView", "ZS_ZombieView", function(ply, origin, angles)
 		if not ply:Alive() or ply.PlayerClassName ~= "zs_zombie" then return end
