@@ -49,6 +49,7 @@ local survivorPistols = {
 util.AddNetworkString("zs_start")
 util.AddNetworkString("zs_phase")
 util.AddNetworkString("zs_roundend")
+util.AddNetworkString("zs_requestspawn")
 
 function MODE:SetupChances()
 	for name, tbl in pairs(self.Types) do
@@ -307,20 +308,36 @@ function MODE:PlayerDeath(ply)
 	end
 end
 
--- Зараженные возрождаются на E (или сразу, если это бот), только во время волны
-function MODE:PlayerDeathThink(ply)
+local function TrySpawnZombie(mode, ply)
 	if zb.ROUND_STATE ~= 1 then return end
+	if ply:Alive() then return end
 
 	local team_ = ply:Team()
 	if team_ == TEAM_SPECTATOR or team_ == TEAM_SURVIVORS then return end
 
-	if not ply:IsBot() and not ply:KeyPressed(IN_USE) then return end
-
-	local _, active, _, finished = GetPhase(self)
+	local _, active, _, finished = GetPhase(mode)
 	if not active or finished then return end
 	if (ply.zs_NextSpawn or 0) > CurTime() then return end
 
-	SpawnZombie(self, ply)
+	SpawnZombie(mode, ply)
+end
+
+-- Нажатия мертвых игроков ловит клиент (как выбор цели в наблюдателе в cl_init.lua) и присылает запрос на спавн по E
+net.Receive("zs_requestspawn", function(len, ply)
+	if (ply.zs_NextRequest or 0) > CurTime() then return end
+	ply.zs_NextRequest = CurTime() + 0.5
+
+	local mode = CurrentRound()
+	if not mode or mode.name ~= "zs" then return end
+
+	TrySpawnZombie(mode, ply)
+end)
+
+-- боты возрождаются сами
+function MODE:PlayerDeathThink(ply)
+	if ply:IsBot() then
+		TrySpawnZombie(self, ply)
+	end
 end
 
 function MODE:ZB_JoinSpectators(ply)

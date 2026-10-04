@@ -115,3 +115,21 @@ function MODE:HUDPaint()
 	DrawRespawnHint()
 	DrawAnnounce()
 end
+
+local useWasDown = false
+
+function MODE:Think()
+	if not IsValid(lply) or lply:Alive() then
+		useWasDown = false
+		return
+	end
+
+	local useDown = lply:KeyDown(IN_USE)
+
+	if useDown and not useWasDown then
+		net.Start("zs_requestspawn")
+		net.SendToServer()
+	end
+
+	useWasDown = useDown
+end

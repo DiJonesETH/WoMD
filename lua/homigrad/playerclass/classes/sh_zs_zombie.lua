@@ -1,7 +1,9 @@
 local CLASS = player.RegClass("zs_zombie")
 
--- Зараженный из режима Zombie Survival: классическая модель зомби без хедкраба, режущие кулаки (см. clawClasses в weapon_hands_sh)
-local ZOMBIE_MODEL = "models/Zombie/Classic.mdl"
+-- Зараженный из режима Zombie Survival: классический зомби без хедкраба, режущие кулаки (см. clawClasses в weapon_hands_sh)
+-- NPC-модель models/Zombie/Classic.mdl не подходит: в ней нет костей игрока (Bip01_Neck1 и др.), на которых держатся камера и удары,
+-- поэтому используется игровая версия той же модели
+local ZOMBIE_MODEL = "models/zcity/player/zombie_classic.mdl"
 local BODYGROUP_HEADCRAB = 1
 
 CLASS.CanUseDefaultPhrase = false
@@ -125,12 +127,37 @@ if SERVER then
 	end)
 end
 
--- NPC-модель не содержит анимаций игрока, поэтому используем её собственные активности
 hook.Add("CalcMainActivity", "ZS_ZombieAnims", function(ply, vel)
 	if ply.PlayerClassName ~= "zs_zombie" then return end
-	if string.lower(ply:GetModel()) ~= string.lower(ZOMBIE_MODEL) then return end
 
-	local anim = vel:Length2DSqr() > 100 and ACT_WALK or ACT_IDLE
+	local anim = ACT_HL2MP_RUN_ZOMBIE
+	if vel:LengthSqr() <= 0 then
+		anim = ACT_HL2MP_IDLE_ZOMBIE
+	end
+	if ply:IsFlagSet(FL_ANIMDUCKING) then
+		anim = ACT_HL2MP_WALK_CROUCH_ZOMBIE_01
+	end
+	if not ply:IsOnGround() and ply:GetMoveType() ~= MOVETYPE_NOCLIP then
+		anim = ACT_HL2MP_JUMP_SLAM
+	end
 
 	return anim, -1
 end)
+
+if CLIENT then
+	-- у модели зомби голова опущена вперед, камеру переносим к верху торса (как у headcrabzombie)
+	hook.Add("HGAddView", "ZS_ZombieView", function(ply, origin, angles)
+		if not ply:Alive() or ply.PlayerClassName ~= "zs_zombie" then return end
+
+		local spine = ply:LookupBone("ValveBiped.Bip01_Spine4")
+		if not spine then return end
+
+		local mat = ply:GetBoneMatrix(spine)
+		if not mat then return end
+
+		local spineAng = mat:GetAngles()
+		origin = origin + spineAng:Right() * -8 + spineAng:Forward() * -2
+
+		return ply, origin, angles
+	end)
+end
