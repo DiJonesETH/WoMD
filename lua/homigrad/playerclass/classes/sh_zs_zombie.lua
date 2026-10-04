@@ -2,7 +2,10 @@
 --
 -- NPC-модели (models/Zombie/*.mdl) не содержат костей игрока (Bip01_Neck1 и др.), на которых в homigrad держатся камера,
 -- удары и организм. Поэтому игрок физически остается на игровой модели zombie_classic (она скрыта материалом "NULL",
--- см. hg.renderOverride), а ванильная NPC-модель без хедкрабов рисуется на клиенте поверх нее через EF_BONEMERGE.
+-- см. hg.renderOverride), а ванильная модель без хедкрабов рисуется на клиенте поверх нее через EF_BONEMERGE.
+--
+-- Тела и клешни (вьюмодели от 11k) взяты из Zombie Survival (github.com/JetBoom/zombiesurvival, лицензия JBGM,
+-- см. LICENSE_zombiesurvival_content.txt): zombie_classic_hbfix, встроенная в GMod player/zombie_fast и Poison.mdl из HL2.
 
 ZS_BASE_MODEL = "models/zcity/player/zombie_classic.mdl"
 
@@ -12,6 +15,9 @@ ZS_ZOMBIE_CLASSES = {
 		name = "Bruiser",
 		desc = "Tank. Slow, takes much less damage, heavy claws.",
 		model = "models/Zombie/Poison.mdl",
+		viewModel = "models/weapons/v_pza.mdl",
+		viewModelFOV = 47,
+		viewModelHiddenBones = {"ValveBiped.HC5_Bodybox"}, -- хедкраб в руке
 		color = Color(50, 110, 230),
 		speed = 0.85,
 		damageTaken = 0.6,
@@ -22,7 +28,9 @@ ZS_ZOMBIE_CLASSES = {
 		key = "agile",
 		name = "Agile",
 		desc = "Fast. Runs and swings quickly, but is fragile.",
-		model = "models/Zombie/Fast.mdl",
+		model = "models/player/zombie_fast.mdl",
+		viewModel = "models/weapons/v_fza.mdl",
+		viewModelFOV = 70,
 		color = Color(220, 50, 50),
 		speed = 1.3,
 		damageTaken = 1.25,
@@ -33,7 +41,9 @@ ZS_ZOMBIE_CLASSES = {
 		key = "metaboliser",
 		name = "Metaboliser",
 		desc = "Healer. Slowly mends itself and nearby infected.",
-		model = "models/Zombie/Classic.mdl",
+		model = "models/player/zombie_classic_hbfix.mdl",
+		viewModel = "models/weapons/v_zombiearms.mdl",
+		viewModelFOV = 70,
 		color = Color(60, 200, 80),
 		speed = 1,
 		damageTaken = 1,
@@ -207,6 +217,26 @@ hook.Add("CalcMainActivity", "ZS_ZombieAnims", function(ply, vel)
 end)
 
 if SERVER then
+	resource.AddFile("models/player/zombie_classic_hbfix.mdl")
+	resource.AddFile("models/weapons/v_zombiearms.mdl")
+	resource.AddFile("models/weapons/v_fza.mdl")
+	resource.AddFile("models/weapons/v_pza.mdl")
+
+	for _, mat in ipairs({
+		"models/weapons/v_zombiearms/zombie_classic_sheet", "models/weapons/v_zombiearms/ghoulsheet",
+		"models/weapons/v_fza/fast_zombie_sheet",
+		"models/weapons/v_pza/poisonzombie_sheet", "models/weapons/v_pza/blackcrab_sheet", "models/weapons/v_pza/hairs",
+	}) do
+		resource.AddFile("materials/" .. mat .. ".vmt")
+	end
+
+	for _, tex in ipairs({
+		"models/weapons/v_zombiearms/zombie_classic_sheet_normal", "models/weapons/v_fza/fast_zombie_sheet_normal",
+		"models/weapons/v_pza/poisonzombie_sheet_normal", "models/weapons/v_pza/blackcrab_sheet_normal",
+	}) do
+		resource.AddSingleFile("materials/" .. tex .. ".vtf")
+	end
+
 	hook.Add("ZB_CanLootInventory", "ZS_ZombieLoot", function(ply, ent, canloot)
 		if ZS_IsZombie(ply) then
 			return ply, ent, false
@@ -328,6 +358,105 @@ else
 
 			visual:SetNoDraw(hide)
 		end
+	end)
+
+	-- клешни от первого лица: вьюмодель класса рисуется поверх кадра с собственными анимациями
+	local claws = {model = nil, seq = nil, seqStart = 0, loop = true, class = nil}
+	local vecHidden = Vector(0, 0, 0)
+
+	local function PlayClawSequence(name, loop)
+		local vm = claws.model
+		if not IsValid(vm) then return end
+
+		local seq = vm:LookupSequence(name)
+		if not seq or seq < 0 then return end
+
+		vm:ResetSequence(seq)
+		claws.seq = seq
+		claws.seqStart = CurTime()
+		claws.loop = loop
+	end
+
+	local function UpdateClawModel(info)
+		if IsValid(claws.model) and claws.class == info then return claws.model end
+
+		if IsValid(claws.model) then claws.model:Remove() end
+
+		local vm = ClientsideModel(info.viewModel, RENDERGROUP_OPAQUE)
+		if not IsValid(vm) then return end
+
+		vm:SetNoDraw(true)
+
+		for _, boneName in ipairs(info.viewModelHiddenBones or {}) do
+			local bone = vm:LookupBone(boneName)
+			if bone then vm:ManipulateBoneScale(bone, vecHidden) end
+		end
+
+		claws.model = vm
+		claws.class = info
+
+		PlayClawSequence("draw", false)
+
+		return vm
+	end
+
+	hook.Add("ZS_ClawSwing", "ZS_ClawViewModel", function(ply)
+		if ply ~= LocalPlayer() or not IsValid(claws.model) then return end
+
+		local hits = {}
+		for _, name in ipairs({"hitcenter1", "hitcenter2"}) do
+			if claws.model:LookupSequence(name) >= 0 then hits[#hits + 1] = name end
+		end
+
+		if #hits > 0 then
+			PlayClawSequence(hits[math.random(#hits)], false)
+		end
+	end)
+
+	hook.Add("Player Spawn", "ZS_ClawViewModelDraw", function(ply)
+		if ply == LocalPlayer() and IsValid(claws.model) then
+			PlayClawSequence("draw", false)
+		end
+	end)
+
+	hook.Add("Post Pre Post Processing", "ZS_ClawViewModel", function()
+		local ply = LocalPlayer()
+		if not IsValid(ply) or not ply:Alive() or not ZS_IsZombie(ply) then return end
+		if GetViewEntity() ~= ply or IsValid(ply.FakeRagdoll) or (hg_thirdperson and hg_thirdperson:GetBool()) then return end
+
+		local info = ZS_ZOMBIE_CLASSES[ply.PlayerClassName]
+		local vm = UpdateClawModel(info)
+		if not IsValid(vm) then return end
+
+		-- блок правой кнопкой показываем замахом altfire, иначе возвращаемся в idle
+		local wep = ply:GetActiveWeapon()
+		local blocking = IsValid(wep) and wep.GetBlocking and wep:GetBlocking()
+		local seqName = vm:GetSequenceName(claws.seq or 0)
+
+		if blocking and seqName ~= "altfire" then
+			PlayClawSequence("altfire", false)
+		end
+
+		local duration = math.max(vm:SequenceDuration(claws.seq or 0), 0.01)
+		local frac = (CurTime() - claws.seqStart) / duration
+
+		if frac >= 1 and not claws.loop and not blocking then
+			PlayClawSequence("idle01", true)
+			frac = 0
+		end
+
+		vm:SetCycle(claws.loop and frac % 1 or math.min(frac, 1))
+
+		local view = render.GetViewSetup()
+
+		cam.Start3D(view.origin, view.angles, info.viewModelFOV, 0, 0, ScrW(), ScrH(), 1, 100)
+			cam.IgnoreZ(true)
+				vm:SetPos(view.origin)
+				vm:SetAngles(view.angles)
+				vm:SetupBones()
+				vm:DrawModel()
+			cam.IgnoreZ(false)
+		cam.End3D()
 	end)
 
 	-- у модели зомби голова опущена вперед, камеру переносим к верху торса (как у headcrabzombie)

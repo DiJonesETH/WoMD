@@ -104,6 +104,9 @@ if CLIENT then
 			self.worldModel = ClientsideModel(self.WorldModel)
 		end
 
+		-- у зараженных Zombie Survival вместо лап рисуются клешни-вьюмодели (sh_zs_zombie.lua)
+		self.worldModel:SetNoDraw(zsClawClasses[owner.PlayerClassName] or false)
+
 		if clawClasses[owner.PlayerClassName] and self.worldModel != "models/weapons/salat/anims/furry_fists.mdl" then
 			self.worldModel:SetModel("models/weapons/salat/anims/furry_fists.mdl")
 		end
@@ -1455,6 +1458,10 @@ function SWEP:PrimaryAttack(forcespecial)
 
 	if owner.organism and owner.organism.rarmamputated then
 		special_attack = false
+	end
+
+	if CLIENT and zsClawClasses[owner.PlayerClassName] then
+		hook.Run("ZS_ClawSwing", owner, special_attack)
 	end
 
 	if self.IsLocal and self:IsLocal() then
