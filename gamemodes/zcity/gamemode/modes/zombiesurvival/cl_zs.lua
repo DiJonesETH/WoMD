@@ -13,6 +13,7 @@ local colShadow = Color(0, 0, 0, 200)
 local colBG = Color(0, 0, 0, 150)
 
 local announce = {text = "", color = colWhite, time = 0}
+local classMenuShown = false
 
 local function Announce(text, color)
 	announce.text = text
@@ -22,6 +23,8 @@ end
 
 net.Receive("zs_start", function()
 	local waves = net.ReadUInt(8)
+
+	classMenuShown = false
 
 	zb.RemoveFade()
 	Announce("Zombie Survival - " .. waves .. " waves", colInfected)
@@ -44,6 +47,8 @@ net.Receive("zs_roundend", function()
 	local winner = net.ReadUInt(2)
 	local wave = net.ReadUInt(8)
 	local waves = net.ReadUInt(8)
+
+	classMenuShown = false
 
 	surface.PlaySound("ambient/alarms/warningbell1.wav")
 
@@ -95,6 +100,10 @@ local function DrawRespawnHint()
 	local _, _, active = MODE:GetWaveInfo()
 	local text = active and "Press E to rise as an infected" or "Infected can't spawn during preparation"
 
+	if not MODE.InfectedUI.GetClass() then
+		text, active = "Press E to choose your infection", true
+	end
+
 	draw.SimpleText(text, "ZB_InterfaceMediumLarge", ScrW() * 0.5 + 2, ScrH() * 0.85 + 2, colShadow, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	draw.SimpleText(text, "ZB_InterfaceMediumLarge", ScrW() * 0.5, ScrH() * 0.85, active and colInfected or colPrep, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 end
@@ -114,6 +123,8 @@ function MODE:HUDPaint()
 	DrawRoundInfo()
 	DrawRespawnHint()
 	DrawAnnounce()
+
+	MODE.InfectedUI.DrawHUD(ScreenScale(8), ScreenScale(44))
 end
 
 local useWasDown = false
@@ -125,10 +136,21 @@ function MODE:Think()
 	end
 
 	local useDown = lply:KeyDown(IN_USE)
+	local infected = zb.ROUND_STATE == 1 and lply:Team() ~= TEAM_SPECTATOR and lply:Team() ~= TEAM_SURVIVORS
 
 	if useDown and not useWasDown then
-		net.Start("zs_requestspawn")
-		net.SendToServer()
+		if infected and not MODE.InfectedUI.GetClass() then
+			MODE.InfectedUI.OpenClassMenu()
+		else
+			net.Start("zs_requestspawn")
+			net.SendToServer()
+		end
+	end
+
+	-- в начале подраунда меню выбора класса открывается само
+	if infected and not MODE.InfectedUI.GetClass() and not classMenuShown then
+		classMenuShown = true
+		MODE.InfectedUI.OpenClassMenu()
 	end
 
 	useWasDown = useDown

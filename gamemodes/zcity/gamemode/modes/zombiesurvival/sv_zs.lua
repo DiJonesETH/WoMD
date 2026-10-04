@@ -119,14 +119,15 @@ local function SpawnZombie(mode, ply)
 	ply:Spawn()
 
 	hg.CreateInv(ply)
-	ply:SetPlayerClass("zs_zombie")
+	ply:SetPlayerClass(ply.zs_Class)
 
 	local pos = GetZombieSpawnPos(ply)
 	if pos then
 		ply:SetPos(pos)
 	end
 
-	zb.GiveRole(ply, "Infected", colInfected)
+	local info = ZS_ZOMBIE_CLASSES[ply.zs_Class]
+	zb.GiveRole(ply, info.name, info.color)
 end
 
 local function SetupSurvivor(ply)
@@ -182,6 +183,8 @@ function MODE:Intermission()
 	self.saved.Active = false
 
 	SetPhaseGlobals(0, waves, false, 0)
+
+	self.Infected.Reset()
 
 	hg.UpdateRoundTime(total + self.start_time + 30, CurTime(), CurTime() + self.start_time)
 
@@ -300,6 +303,8 @@ function MODE:PlayerDeath(ply)
 
 	ply.zs_NextSpawn = CurTime() + self.ZombieRespawnDelay
 
+	self.Infected.MarkCorpse(ply)
+
 	if ply:Team() == TEAM_SURVIVORS then
 		ply:SetTeam(TEAM_INFECTED)
 
@@ -318,6 +323,9 @@ local function TrySpawnZombie(mode, ply)
 	local _, active, _, finished = GetPhase(mode)
 	if not active or finished then return end
 	if (ply.zs_NextSpawn or 0) > CurTime() then return end
+
+	-- класс выбирается один раз на весь подраунд
+	if not mode.Infected.EnsureClass(ply) then return end
 
 	SpawnZombie(mode, ply)
 end

@@ -51,7 +51,16 @@ end
 local clawClasses = {
 	["furry"] = 0.5,
 	["headcrabzombie"] = 1.5,
-	["zs_zombie"] = 0.5
+	["zs_bruiser"] = 0.8,
+	["zs_agile"] = 0.2,
+	["zs_metaboliser"] = 0.5
+}
+
+-- зараженные Zombie Survival: когти со звуками ванильного зомби HL2
+local zsClawClasses = {
+	["zs_bruiser"] = true,
+	["zs_agile"] = true,
+	["zs_metaboliser"] = true
 }
 
 local function qerp(delta, a, b)
@@ -1264,11 +1273,23 @@ local customClassInfo = {
 		handsDesc = "zombie",
 		Instructions = "LMB - strike\nRMB - block/grab player\n\n<color=150,0,0>These are your zombified hands. They're no energy sword, but they still pack a wallop."
 	},
-	["zs_zombie"] = {
-		PrintName = "Claws",
+	["zs_bruiser"] = {
+		PrintName = "Bruiser Claws",
 		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
-		handsDesc = "zs_zombie",
-		Instructions = "LMB - slash\nRMB - block\n\n<color=150,0,0>Your claws deal slashing damage. Infect them all."
+		handsDesc = "zs_bruiser",
+		Instructions = "LMB - slash\nRMB - block\n\n<color=50,110,230>Slow and crushing. Each swing hits hard."
+	},
+	["zs_agile"] = {
+		PrintName = "Agile Claws",
+		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
+		handsDesc = "zs_agile",
+		Instructions = "LMB - slash\nRMB - block\n\n<color=220,50,50>Light and quick. Shred them with a flurry of swipes."
+	},
+	["zs_metaboliser"] = {
+		PrintName = "Metaboliser Claws",
+		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
+		handsDesc = "zs_metaboliser",
+		Instructions = "LMB - slash\nRMB - block\n\n<color=60,200,80>Balanced claws. Stay close to the horde to keep it alive."
 	}
 }
 
@@ -1461,7 +1482,7 @@ function SWEP:PrimaryAttack(forcespecial)
 	self:SetLastShootTime(CurTime())
 
 	local snd, pitch = "weapons/slam/throw.wav", math.random(110, 120)
-	if owner.PlayerClassName == "headcrabzombie" then
+	if owner.PlayerClassName == "headcrabzombie" or zsClawClasses[owner.PlayerClassName] then
 		snd, pitch = "npc/zombie/claw_miss"..math.random(2)..".wav", math.random(95, 110)
 	end
 	if owner.PlayerClassName == "furry" then
@@ -1546,6 +1567,7 @@ function SWEP:AttackFront(special_attack, rand)
 	end
 
 	local isZomb = owner.PlayerClassName == "headcrabzombie"
+	local zombSound = isZomb or zsClawClasses[owner.PlayerClassName]
 	local AimVec = owner:GetAimVector()
 	if IsValid(Ent) or (Ent and Ent.IsWorld and Ent:IsWorld()) then
 		local inv = owner:GetNetVar("Inventory",{})
@@ -1564,7 +1586,7 @@ function SWEP:AttackFront(special_attack, rand)
 			SelfForce = 25
 			if Ent:IsPlayer() and IsValid(Ent:GetActiveWeapon()) and Ent:GetActiveWeapon().GetBlocking and Ent:GetActiveWeapon():GetBlocking() and not RagdollOwner(Ent) then
 				local snd = "Flesh.ImpactSoft"
-				if isZomb then
+				if zombSound then
 					snd = "npc/zombie/claw_strike"..math.random(3)..".wav"
 				elseif owner.PlayerClassName == "furry" then
 					snd = "pwb/weapons/knife/hit"..math.random(4)..".wav"
@@ -1575,7 +1597,7 @@ function SWEP:AttackFront(special_attack, rand)
 				end
 			else
 				local snd = "Flesh.ImpactHard"
-				if isZomb then
+				if zombSound then
 					snd = "npc/zombie/claw_strike"..math.random(3)..".wav"
 				elseif owner.PlayerClassName == "furry" then
 					snd = "pwb/weapons/knife/hit"..math.random(4)..".wav"
@@ -1598,7 +1620,7 @@ function SWEP:AttackFront(special_attack, rand)
 			end
 		else
 			local snd = "Flesh.ImpactSoft"
-			if isZomb then
+			if zombSound then
 				snd = "npc/zombie/claw_strike"..math.random(3)..".wav"
 			elseif owner.PlayerClassName == "furry" then
 				snd = "pwb/weapons/knife/hitwall.wav"
