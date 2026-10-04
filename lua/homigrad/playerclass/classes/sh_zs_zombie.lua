@@ -320,6 +320,8 @@ if SERVER then
 		ragdoll:SetMaterial("NULL")
 		ragdoll:SetNWString("ZS_Visual", ply:GetNWString("ZS_Visual"))
 		ragdoll:SetNWBool("ZS_Black", ply:GetNWBool("ZS_Black", false))
+		ragdoll:SetNWBool("ZS_Gray", ply:GetNWBool("ZS_Gray", false))
+		ragdoll:SetNWBool("ZS_BigArms", ply:GetNWBool("ZS_BigArms", false))
 	end)
 
 	-- живучесть класса
@@ -391,6 +393,12 @@ else
 	local tracked = {}
 	local nextScan = 0
 	local colBlack = Color(12, 12, 12)
+	local colGray = Color(140, 140, 140)
+	local vecNormal, vecBigArms = Vector(1, 1, 1), Vector(1.35, 1.35, 1.35)
+	local armBones = {
+		"ValveBiped.Bip01_L_UpperArm", "ValveBiped.Bip01_L_Forearm", "ValveBiped.Bip01_L_Hand",
+		"ValveBiped.Bip01_R_UpperArm", "ValveBiped.Bip01_R_Forearm", "ValveBiped.Bip01_R_Hand",
+	}
 
 	local function ScanVisuals()
 		for _, ent in player.Iterator() do
@@ -430,11 +438,24 @@ else
 
 			visual:SetNoDraw(hide)
 
-			-- автолиз: гниющая черная плоть
+			-- автолиз: гниющая черная плоть, фибродисплазия: костная серая
 			if ent:GetNWBool("ZS_Black", false) then
 				visual:SetColor(colBlack)
+			elseif ent:GetNWBool("ZS_Gray", false) then
+				visual:SetColor(colGray)
 			else
 				visual:SetColor(color_white)
+			end
+
+			-- анаболический форсаж: увеличенные руки от третьего лица
+			local armScale = ent:GetNWBool("ZS_BigArms", false) and vecBigArms or vecNormal
+			if visual.zs_ArmScale ~= armScale then
+				visual.zs_ArmScale = armScale
+
+				for _, boneName in ipairs(armBones) do
+					local bone = visual:LookupBone(boneName)
+					if bone then visual:ManipulateBoneScale(bone, armScale) end
+				end
 			end
 		end
 	end)
@@ -533,7 +554,15 @@ else
 				vm:SetPos(view.origin)
 				vm:SetAngles(view.angles)
 				vm:SetupBones()
-				vm:DrawModel()
+
+				-- фибродисплазия: серые костные клешни
+				if ply:GetNWBool("ZS_Gray", false) then
+					render.SetColorModulation(0.55, 0.55, 0.55)
+					vm:DrawModel()
+					render.SetColorModulation(1, 1, 1)
+				else
+					vm:DrawModel()
+				end
 			cam.IgnoreZ(false)
 		cam.End3D()
 	end)

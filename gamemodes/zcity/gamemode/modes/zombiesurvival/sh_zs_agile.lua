@@ -101,6 +101,8 @@ end
 
 -- пересчет модификаторов от навыков; вызывается при покупке и при каждом спавне зараженного
 hook.Add("ZS_ApplySkillEffects", "ZS_AgileSkills", function(ply)
+	if ply.zs_Class ~= "zs_agile" then return end
+
 	StatsDefaults(ply)
 
 	local speed, attack, damageTaken, stamina = 1, 1, 1, 200

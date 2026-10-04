@@ -63,6 +63,16 @@ local zsClawClasses = {
 	["zs_metaboliser"] = true
 }
 
+-- навык "Бросок" (bruiser): предмет берется на M2 при поднятых когтях и бросается на M1
+local function ZSThrower(owner)
+	return IsValid(owner) and zsClawClasses[owner.PlayerClassName] and ZS_HasSkill and ZS_HasSkill(owner, "throw")
+end
+
+local function ZSCarryEnt(self, owner)
+	if SERVER then return self.CarryEnt end
+	return owner:GetNetVar("carryent")
+end
+
 local function qerp(delta, a, b)
 	local qdelta = -(delta ^ 2) + (delta * 2)
 	qdelta = math.Clamp(qdelta, 0, 1)
@@ -774,7 +784,9 @@ function SWEP:SecondaryAttack()
 		self:PrimaryAttack(true)
 	end
 
-	if self:GetFists() --[[and owner.PlayerClassName ~= "headcrabzombie"]] then return end
+	-- E+M2 у зараженного с гильотиной занят навыком
+	if zsClawClasses[owner.PlayerClassName] and owner:KeyDown(IN_USE) and ZS_HasSkill and ZS_HasSkill(owner, "guillotine") then return end
+	if self:GetFists() --[[and owner.PlayerClassName ~= "headcrabzombie"]] and not ZSThrower(owner) then return end
 	--[[if self:GetFists() and owner.PlayerClassName == "headcrabzombie" then
 		self:SetFists(false)
 	end--]]
@@ -815,7 +827,9 @@ function SWEP:SecondaryAttack()
 		end
 
 		--if (IsValid(tr.Entity) or game.GetWorld() == tr.Entity) and self:CanPickup(tr.Entity) and not tr.Entity:IsPlayer() then
-		if (IsValid(tr.Entity)) and self:CanPickup(tr.Entity) and not tr.Entity:IsPlayer() then
+		if self:GetFists() and ZSThrower(owner) and not (IsValid(tr.Entity) and self:CanPickup(tr.Entity) and not tr.Entity:IsPlayer() and not tr.Entity:IsRagdoll()) then
+			-- с поднятыми когтями зараженный берет только предметы
+		elseif (IsValid(tr.Entity)) and self:CanPickup(tr.Entity) and not tr.Entity:IsPlayer() then
 			local Dist = (select(1, hg.eye(owner)) - tr.HitPos):Length()
 			--if Dist < self.ReachDistance then
 				sound.Play("Flesh.ImpactSoft", owner:GetShootPos(), 65, math.random(90, 110))
@@ -1330,7 +1344,7 @@ function SWEP:Think()
 		self:SetFists(true)
 	end
 
-	if IsValid(owner) and owner:KeyDown(IN_ATTACK2) and (not self:GetFists() or owner.PlayerClassName == "headcrabzombie") then
+	if IsValid(owner) and owner:KeyDown(IN_ATTACK2) and (not self:GetFists() or owner.PlayerClassName == "headcrabzombie" or ZSThrower(owner)) then
 		if IsValid(self.CarryEnt) or game.GetWorld() == self.CarryEnt then self:ApplyForce() end
 	elseif self.CarryEnt then
 		if IsValid(self.CarryEnt) and self.CarryEnt.organism and self.CarryEnt.organism.alive then
@@ -1341,7 +1355,7 @@ function SWEP:Think()
 		self:SetCarrying()
 	end
 
-	if self:GetFists() and owner:KeyDown(IN_ATTACK2) and (self:GetNextSecondaryFire() < CurTime()) and owner.PlayerClassName ~= "sc_infiltrator" and owner.PlayerClassName ~= "headcrabzombie" then
+	if self:GetFists() and owner:KeyDown(IN_ATTACK2) and (self:GetNextSecondaryFire() < CurTime()) and owner.PlayerClassName ~= "sc_infiltrator" and owner.PlayerClassName ~= "headcrabzombie" and not (ZSThrower(owner) and IsValid(ZSCarryEnt(self, owner))) then
 		self:SetNextPrimaryFire(CurTime() + .5)
 		self:SetBlocking(true)
 	else
@@ -1406,8 +1420,35 @@ end
 function SWEP:PrimaryAttack(forcespecial)
 	local owner = self:GetOwner()
 	if not IsValid(owner) or owner:InVehicle() then return end
-	-- E+M1 у зараженных Zombie Survival занят навыками (рывок, укус)
-	if zsClawClasses[owner.PlayerClassName] and owner:KeyDown(IN_USE) and ZS_HasSkill and (ZS_HasSkill(owner, "dash") or ZS_HasSkill(owner, "hyperdontia")) then return end
+	-- E+M1 у зараженных Zombie Survival занят навыками (рывок, укус, импульс массы)
+	if zsClawClasses[owner.PlayerClassName] and owner:KeyDown(IN_USE) and ZS_HasSkill and (ZS_HasSkill(owner, "dash") or ZS_HasSkill(owner, "hyperdontia") or ZS_HasSkill(owner, "mass_impulse")) then return end
+
+	-- бросок удерживаемого предмета
+	if ZSThrower(owner) and owner:KeyDown(IN_ATTACK2) and IsValid(ZSCarryEnt(self, owner)) then
+		self:SetNextPrimaryFire(CurTime() + 0.8)
+
+		if SERVER then
+			local ent = self.CarryEnt
+			local force = ZS_HasSkill(owner, "anabolic_boost") and 1600 or 1100
+			local vel = owner:GetAimVector() * force
+
+			self:SetCarrying()
+
+			for i = 0, ent:GetPhysicsObjectCount() - 1 do
+				local phys = ent:GetPhysicsObjectNum(i)
+				if IsValid(phys) then
+					phys:Wake()
+					phys:SetVelocity(vel)
+				end
+			end
+
+			ent.zs_ThrownBy = owner
+			owner:EmitSound("npc/zombie/zo_attack" .. math.random(2) .. ".wav", 75)
+			sound.Play("weapons/slam/throw.wav", owner:GetShootPos(), 70, math.random(80, 90))
+		end
+
+		return
+	end
 	if (self.attacked or 0) > CurTime() then return end
 	local side = "fists_left"
 	local rand = math.Round(util.SharedRandom( "fist_Punching", 1, 2 ), 0) == 1
@@ -1694,7 +1735,7 @@ function SWEP:AttackFront(special_attack, rand)
 		Dam:SetInflictor(self)
 		Dam:SetDamage(DamageAmt * Mul * 0.75 * (clawClasses[owner.PlayerClassName] and 5 or 1))
 		Dam:SetDamageForce(AimVec * Mul ^ 2)
-		Dam:SetDamageType((clawClasses[owner.PlayerClassName] or (Ent:GetClass() == "func_breakable_surf")) and DMG_SLASH or DMG_CLUB)
+		Dam:SetDamageType((clawClasses[owner.PlayerClassName] or (Ent:GetClass() == "func_breakable_surf")) and not owner:GetNWBool("ZS_BluntClaws", false) and DMG_SLASH or DMG_CLUB)
 		Dam:SetDamagePosition(HitPos)
 		Ent:TakeDamageInfo(Dam)
 
