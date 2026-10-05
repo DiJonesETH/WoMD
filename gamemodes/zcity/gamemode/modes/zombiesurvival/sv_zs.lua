@@ -17,6 +17,7 @@ MODE.Type = MODE.Type or "zs_short"
 
 MODE.InfectedAtStart = 2
 MODE.ZombieRespawnDelay = 5
+MODE.ZombieCorpseLifeTime = 60 -- через сколько секунд исчезает труп зараженного
 MODE.PistolChance = 15
 
 local TEAM_SURVIVORS = 0
@@ -337,12 +338,30 @@ function MODE:PlayerDeath(ply)
 
 	self.Infected.MarkCorpse(ply)
 
-	if ply:Team() == TEAM_SURVIVORS then
+	if ply:Team() == TEAM_INFECTED then
+		self:RemoveZombieCorpse(ply)
+	elseif ply:Team() == TEAM_SURVIVORS then
 		ply:SetTeam(TEAM_INFECTED)
 
 		PrintMessage(HUD_PRINTTALK, ply:Name() .. " has been infected.")
 		zb.GiveRole(ply, "Infected", colInfected)
 	end
+end
+
+-- регдолл погибшего зараженного удаляется через минуту
+function MODE:RemoveZombieCorpse(ply)
+	local lifeTime = self.ZombieCorpseLifeTime
+
+	timer.Simple(0.1, function()
+		if not IsValid(ply) then return end
+
+		local ragdoll = IsValid(ply.RagdollDeath) and ply.RagdollDeath or ply:GetNWEntity("RagdollDeath")
+		if not IsValid(ragdoll) then return end
+
+		timer.Simple(lifeTime, function()
+			if IsValid(ragdoll) then ragdoll:Remove() end
+		end)
+	end)
 end
 
 local function TrySpawnZombie(mode, ply, nest)
