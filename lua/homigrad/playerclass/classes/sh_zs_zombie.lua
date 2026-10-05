@@ -202,6 +202,13 @@ hook.Add("PlayerCanPickupWeapon", "ZS_ZombiePickup", function(ply, ent)
 	end
 end)
 
+-- зараженные не обыскивают контейнеры и трупы (E+M2 у них занято способностями)
+hook.Add("ZB_CanLootInventory", "ZS_ZombieLoot", function(ply, ent)
+	if ZS_IsZombie(ply) then
+		return ply, ent, false
+	end
+end)
+
 hook.Add("CanPlayerEnterVehicle", "ZS_ZombieVehicle", function(ply, ent)
 	if ZS_IsZombie(ply) then
 		return false

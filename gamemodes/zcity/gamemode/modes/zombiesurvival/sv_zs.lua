@@ -9,7 +9,9 @@ MODE.end_time = 10
 MODE.ROUND_TIME = 1800
 
 MODE.OverrideSpawn = true
-MODE.LootSpawn = false
+MODE.LootSpawn = true
+MODE.LootOnTime = true
+MODE.LootDivTime = 500
 MODE.ForBigMaps = false
 MODE.Chance = 0.03
 
@@ -150,6 +152,8 @@ local function SetupSurvivor(ply)
 	ply:SetupTeam(TEAM_SURVIVORS)
 	ApplyAppearance(ply, nil, nil, nil, true)
 
+	ply.zs_ClawHealth = nil
+
 	zb.GiveRole(ply, "Survivor", colSurvivor)
 
 	ply:Give("weapon_hands_sh")
@@ -197,6 +201,7 @@ function MODE:Intermission()
 	self.saved.StartTime = nil
 	self.saved.Wave = 0
 	self.saved.Active = false
+	self.saved.AirdropWave = 0
 
 	SetPhaseGlobals(0, waves, false, 0)
 

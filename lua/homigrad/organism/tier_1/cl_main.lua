@@ -682,6 +682,12 @@ local pitchAddClasses = {
 local muffedClasses = {
 	["headcrabzombie"] = true
 }
+-- зараженные Zombie Survival не дышат человеческим голосом
+local silentBreathClasses = {
+	["zs_agile"] = true,
+	["zs_bruiser"] = true,
+	["zs_metaboliser"] = true
+}
 
 local hg_heartbeat_volume = ConVarExists("hg_heartbeat_volume") and GetConVar("hg_heartbeat_volume") or CreateClientConVar("hg_heartbeat_volume", 1, true, nil, "heartbeat loudness", 0, 4)
 
@@ -761,7 +767,7 @@ hook.Add("Player-Ragdoll think", "organism-think-client-blood", function(ply, en
 
 				end
 
-				ply:EmitSound("snds_jack_hmcd_breathing/" .. (ThatPlyIsFemale(ent) and "f" or "m") .. math.random(4) .. ".wav", min(heartbeat * 2 / ( muffed and 2.5 or 4), 45), pitch + pitchadd + math.Rand(-2, 2), vol, CHAN_AUTO, 0, muffed and 16 or 0)
+				if not silentBreathClasses[ply.PlayerClassName] then ply:EmitSound("snds_jack_hmcd_breathing/" .. (ThatPlyIsFemale(ent) and "f" or "m") .. math.random(4) .. ".wav", min(heartbeat * 2 / ( muffed and 2.5 or 4), 45), pitch + pitchadd + math.Rand(-2, 2), vol, CHAN_AUTO, 0, muffed and 16 or 0) end
 			elseif org.breathed and sin >= 0.1 then
 				org.breathed = false
 			end

@@ -28,7 +28,7 @@ function MODE:GetWaveInfo()
 	return GetGlobalInt("ZS_Wave", 0), GetGlobalInt("ZS_Waves", 0), GetGlobalBool("ZS_WaveActive", false), GetGlobalFloat("ZS_PhaseEnd", 0)
 end
 
-MODE.PointsPerDamage = 1 -- очков за 1 хп урона по выжившим
+MODE.PointsPerDamage = 2 -- очков за 1 хп урона по выжившим (не больше SurvivorClawHealth хп с одного выжившего)
 MODE.PointsPerCorpse = 100 -- очков за съеденный труп
 MODE.EatTime = 6
 MODE.EatDistance = 90

@@ -131,8 +131,19 @@ net.Receive("zs_buyskill", function(len, ply)
 	ply:EmitSound("npc/zombie/zombie_alert" .. math.random(3) .. ".wav", 70)
 end)
 
--- 1 очко за 1 хп урона по выжившему
-function MODE:HomigradDamage(ent, dmgInfo)
+-- Урон зараженных по выжившим.
+-- У выжившего есть отдельный запас здоровья против зараженных (SurvivorClawHealth): весь урон зараженных
+-- списывается с него, а когда он кончается, выживший умирает. Очки начисляются только за урон из этого запаса,
+-- поэтому с одного выжившего нельзя выбить больше SurvivorClawHealth * PointsPerDamage очков.
+-- В организм Homigrad доходит только часть урона (ZombieOrganismDamageMul), поэтому боли и шока меньше,
+-- а кровотечение открывается с шансом ZombieBleedChance на удар.
+MODE.SurvivorClawHealth = 100
+MODE.ZombieOrganismDamageMul = 0.4
+MODE.ZombieBleedChance = 20
+
+local arteries = {"arteria", "rarmartery", "larmartery", "rlegartery", "llegartery", "spineartery"}
+
+local function ZombieHitOnSurvivor(ent, dmgInfo)
 	if zb.ROUND_STATE ~= 1 then return end
 
 	local attacker = dmgInfo:GetAttacker()
@@ -142,7 +153,79 @@ function MODE:HomigradDamage(ent, dmgInfo)
 	if not IsValid(victim) or not victim:IsPlayer() or victim == attacker then return end
 	if victim:Team() ~= TEAM_SURVIVORS or not victim:Alive() then return end
 
-	Infected.AddPoints(attacker, dmgInfo:GetDamage() * self.PointsPerDamage)
+	return attacker, victim
+end
+
+function MODE:PreHomigradDamage(ent, dmgInfo)
+	local attacker, victim = ZombieHitOnSurvivor(ent, dmgInfo)
+	if not attacker then return end
+
+	local health = victim.zs_ClawHealth or self.SurvivorClawHealth
+	local dealt = math.min(dmgInfo:GetDamage(), health)
+
+	victim.zs_ClawHealth = health - dealt
+	Infected.AddPoints(attacker, dealt * self.PointsPerDamage)
+
+	dmgInfo:ScaleDamage(self.ZombieOrganismDamageMul)
+
+	-- без кровотечения: запоминаем состояние организма, чтобы после удара откатить новые кровотечения
+	local org = victim.organism
+	victim.zs_NoBleedHit = nil
+
+	if org and math.random(100) > self.ZombieBleedChance then
+		local snapshot = {
+			arterial = org.arterialwounds and #org.arterialwounds or 0,
+			internalBleed = org.internalBleed,
+		}
+
+		for _, artery in ipairs(arteries) do
+			snapshot[artery] = org[artery]
+		end
+
+		victim.zs_NoBleedHit = snapshot
+	end
+
+	if victim.zs_ClawHealth <= 0 then
+		timer.Simple(0, function()
+			if IsValid(victim) and victim:Alive() and victim:Team() == TEAM_SURVIVORS then
+				victim:Kill()
+			end
+		end)
+	end
+end
+
+function MODE:PreHomigradDamageBulletBleedAdd(ent, org, dmgInfo, hitgroup, harm, hitBoxs, inputHole, hookInfo)
+	local attacker, victim = ZombieHitOnSurvivor(ent, dmgInfo)
+	if not attacker or not victim.zs_NoBleedHit then return end
+
+	hookInfo.restricted = true
+end
+
+function MODE:HomigradDamage(ent, dmgInfo)
+	local attacker, victim = ZombieHitOnSurvivor(ent, dmgInfo)
+	if not attacker then return end
+
+	local snapshot = victim.zs_NoBleedHit
+	victim.zs_NoBleedHit = nil
+
+	local org = victim.organism
+	if not snapshot or not org then return end
+
+	if org.arterialwounds and #org.arterialwounds > snapshot.arterial then
+		for i = #org.arterialwounds, snapshot.arterial + 1, -1 do
+			table.remove(org.arterialwounds, i)
+		end
+
+		victim:SetNetVar("arterialwounds", org.arterialwounds)
+	end
+
+	for _, artery in ipairs(arteries) do
+		if snapshot[artery] ~= nil then org[artery] = snapshot[artery] end
+	end
+
+	if snapshot.internalBleed and org.internalBleed > snapshot.internalBleed then
+		org.internalBleed = snapshot.internalBleed
+	end
 end
 
 -- регдоллы погибших игроков можно съесть один раз

@@ -8,6 +8,8 @@ util.AddNetworkString("zs_airdrop")
 MODE.AirdropFromWave = 2
 MODE.AirdropSkyOffset = 80
 MODE.AirdropMaxDropHeight = 3000
+MODE.AirdropMinDist = 300 -- ящик падает в этом радиусе от кого-нибудь из живых выживших
+MODE.AirdropMaxDist = 2000
 
 local TEAM_SURVIVORS = 0
 
@@ -151,8 +153,33 @@ local function GetCandidatePoints()
 	return pos and {pos} or {}
 end
 
+-- точки сброса поближе к живым выжившим, чтобы ящик можно было найти за время подготовки
+local function NearSurvivors(points, mode)
+	local survivors = {}
+	for _, ply in player.Iterator() do
+		if ply:Team() == TEAM_SURVIVORS and ply:Alive() then survivors[#survivors + 1] = ply:GetPos() end
+	end
+
+	if #survivors == 0 then return points end
+
+	local minDist, maxDist = mode.AirdropMinDist ^ 2, mode.AirdropMaxDist ^ 2
+	local near = {}
+
+	for _, point in ipairs(points) do
+		for _, pos in ipairs(survivors) do
+			local dist = point:DistToSqr(pos)
+			if dist >= minDist and dist <= maxDist then
+				near[#near + 1] = point
+				break
+			end
+		end
+	end
+
+	return #near > 0 and near or points
+end
+
 local function FindDropPos(mode)
-	local points = GetCandidatePoints()
+	local points = NearSurvivors(GetCandidatePoints(), mode)
 	if #points == 0 then return end
 
 	for _ = 1, 25 do
@@ -185,6 +212,8 @@ function MODE:SpawnAirdrop()
 	crate:SetAngles(Angle(0, math.Rand(0, 360), 0))
 	crate:Spawn()
 
+	print("[ZS] Airdrop spawned at " .. tostring(pos) .. " (wave " .. GetGlobalInt("ZS_Wave", 0) .. ")")
+
 	if fromSky then
 		crate:StartFalling()
 	end
@@ -202,6 +231,11 @@ end
 hook.Add("ZS_PrepStart", "ZS_Airdrop", function(wave)
 	local mode = CurrentRound()
 	if not mode or mode.name ~= "zs" or wave < mode.AirdropFromWave then return end
+
+	-- один ящик на подготовку
+	mode.saved.AirdropWave = mode.saved.AirdropWave or 0
+	if mode.saved.AirdropWave >= wave then return end
+	mode.saved.AirdropWave = wave
 
 	mode:SpawnAirdrop()
 end)
