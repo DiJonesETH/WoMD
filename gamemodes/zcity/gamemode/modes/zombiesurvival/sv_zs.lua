@@ -50,6 +50,20 @@ util.AddNetworkString("zs_start")
 util.AddNetworkString("zs_phase")
 util.AddNetworkString("zs_roundend")
 util.AddNetworkString("zs_requestspawn")
+util.AddNetworkString("zs_music")
+
+resource.AddFile("sound/zbattle/zs/lastwave.mp3")
+resource.AddFile("sound/zbattle/zs/roundstart.mp3")
+
+-- музыка на последней волне: 1 - включать, 0 - нет
+local lastWaveMusic = CreateConVar("zb_lastwavemusic", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Zombie Survival: play music during the last wave (1/0)", 0, 1)
+MODE.LastWaveMusicDelay = 3 -- секунда подготовки последней волны, на которой стартует трек
+
+local function PlayMusic(track)
+	net.Start("zs_music")
+		net.WriteString(track)
+	net.Broadcast()
+end
 
 function MODE:SetupChances()
 	for name, tbl in pairs(self.Types) do
@@ -189,6 +203,8 @@ function MODE:Intermission()
 
 	hg.UpdateRoundTime(total + self.start_time + 30, CurTime(), CurTime() + self.start_time)
 
+	timer.Remove("ZS_LastWaveMusic")
+
 	net.Start("zs_start")
 		net.WriteUInt(waves, 8)
 	net.Broadcast()
@@ -232,6 +248,15 @@ local function UpdatePhase(mode, force)
 		hook.Run("ZS_WaveStart", wave)
 	else
 		hook.Run("ZS_PrepStart", wave)
+
+		-- трек последней волны стартует на 3-й секунде ее подготовки
+		if wave == mode.saved.Waves and lastWaveMusic:GetBool() then
+			timer.Create("ZS_LastWaveMusic", mode.LastWaveMusicDelay, 1, function()
+				if zb.ROUND_STATE == 1 and CurrentRound() == mode then
+					PlayMusic("lastwave")
+				end
+			end)
+		end
 	end
 
 	net.Start("zs_phase")
@@ -362,3 +387,20 @@ end
 function MODE:ZB_JoinSpectators(ply)
 	if ply:Alive() then return true end
 end
+
+-- zb_skipwave: пропустить текущую волну (с ее подготовкой), следующая начнется с подготовки
+concommand.Add("zb_skipwave", function(ply)
+	if IsValid(ply) and not ply:IsAdmin() then return end
+
+	local mode = CurrentRound()
+	if not mode or mode.name ~= "zs" or zb.ROUND_STATE ~= 1 or not mode.saved.StartTime then return end
+
+	local period = mode.PrepTime + mode.WaveTime
+	local wave = GetPhase(mode)
+	local nextWaveStart = mode.saved.StartTime + wave * period
+
+	mode.saved.StartTime = mode.saved.StartTime - (nextWaveStart - CurTime())
+	UpdatePhase(mode)
+
+	PrintMessage(HUD_PRINTTALK, (IsValid(ply) and ply:Nick() or "Console") .. " skipped wave " .. wave .. ".")
+end)

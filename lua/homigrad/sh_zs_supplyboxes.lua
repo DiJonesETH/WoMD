@@ -3,25 +3,25 @@
 
 ZS_SUPPLY_BOXES = {
 	arsenal = {
-		name = "Арсенальный ящик",
+		name = "Arsenal Box",
 		model = "models/props/de_prodigy/ammo_can_01.mdl",
 		color = Color(255, 255, 255),
 		weapon = "weapon_zs_box_arsenal",
-		desc = "Раз в 2 минуты выдает 3 магазина к оружию в руках",
+		desc = "Gives 3 magazines for the weapon in your hands every 2 minutes",
 	},
 	medical = {
-		name = "Медицинский ящик",
+		name = "Medical Box",
 		model = "models/Items/item_item_crate.mdl",
 		color = Color(220, 40, 40),
 		weapon = "weapon_zs_box_medical",
-		desc = "Раз в 2 минуты выдает 3 случайных медицинских предмета",
+		desc = "Gives 3 random medical items every 2 minutes",
 	},
 	tech = {
-		name = "Технический ящик",
+		name = "Tech Box",
 		model = "models/props/cs_militia/footlocker01_closed.mdl",
 		color = Color(240, 200, 30),
 		weapon = "weapon_zs_box_tech",
-		desc = "Раз в 2 минуты выдает скотч, молоток и 32 гвоздя",
+		desc = "Gives duct tape, a hammer and 32 nails every 2 minutes",
 	},
 }
 

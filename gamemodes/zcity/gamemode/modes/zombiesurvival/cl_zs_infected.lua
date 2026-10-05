@@ -104,6 +104,35 @@ net.Receive("zs_openclassmenu", UI.OpenClassMenu)
 local skillMenu
 
 local GRID_COLS, GRID_ROWS = 3, 5
+
+surface.CreateFont("ZS_SkillName", {font = "Roboto", size = math.max(ScreenScale(7), 16), weight = 700, extended = true})
+surface.CreateFont("ZS_SkillDesc", {font = "Roboto", size = math.max(ScreenScale(4.6), 12), weight = 500, extended = true})
+
+-- перенос текста по словам под ширину карточки (с учетом \n)
+local function WrapText(text, font, width)
+	surface.SetFont(font)
+
+	local lines = {}
+
+	for _, paragraph in ipairs(string.Explode("\n", text or "")) do
+		local line = ""
+
+		for _, word in ipairs(string.Explode(" ", paragraph)) do
+			local candidate = line == "" and word or (line .. " " .. word)
+
+			if surface.GetTextSize(candidate) > width and line ~= "" then
+				lines[#lines + 1] = line
+				line = word
+			else
+				line = candidate
+			end
+		end
+
+		lines[#lines + 1] = line
+	end
+
+	return lines
+end
 local colLocked = Color(70, 70, 70)
 local colLine = Color(200, 200, 200, 90)
 
@@ -175,7 +204,7 @@ local function BuildSkillGrid(parent, class, info)
 		node:SetPos(x, y)
 		node:SetSize(nodeW, nodeH)
 		node:SetText("")
-		node:SetTooltip(skill.name .. "\n\n" .. (skill.desc or ""))
+		node.DescLines = WrapText(skill.desc, "ZS_SkillDesc", nodeW - 16)
 
 		node.Paint = function(self, nw, nh)
 			local state = SkillState(class, id)
@@ -194,19 +223,30 @@ local function BuildSkillGrid(parent, class, info)
 			surface.SetDrawColor(main)
 			surface.DrawOutlinedRect(0, 0, nw, nh, (state == "owned" or (state == "available" and self:IsHovered())) and 3 or 1)
 
-			draw.SimpleText(skill.name or id, "ZB_InterfaceMedium", nw * 0.5, nh * 0.3, state == "locked" and colGray or colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-			draw.SimpleText(skill.short or "", "ZB_InterfaceSmall", nw * 0.5, nh * 0.58, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			-- название и оригинальное описание навыка
+			draw.SimpleText(skill.name or id, "ZS_SkillName", nw * 0.5, 4, state == "locked" and colGray or col, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+
+			surface.SetFont("ZS_SkillName")
+			local _, nameH = surface.GetTextSize("A")
+			surface.SetFont("ZS_SkillDesc")
+			local _, lineH = surface.GetTextSize("A")
+
+			local y = 6 + nameH
+			for _, line in ipairs(self.DescLines) do
+				draw.SimpleText(line, "ZS_SkillDesc", 8, y, state == "locked" and colGray or colWhite, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+				y = y + lineH
+			end
 
 			local status
 			if state == "owned" then
-				status = "Изучено"
+				status = "Learned"
 			elseif state == "locked" then
-				status = "Недоступно"
+				status = "Locked"
 			else
-				status = (skill.cost or 0) .. " очков"
+				status = (skill.cost or 0) .. " pts"
 			end
 
-			draw.SimpleText(status, "ZB_InterfaceSmall", nw * 0.5, nh * 0.82, state == "available" and col or colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			draw.SimpleText(status, "ZS_SkillName", nw - 8, nh - 4, state == "available" and col or colGray, TEXT_ALIGN_RIGHT, TEXT_ALIGN_BOTTOM)
 		end
 
 		node.DoClick = function()
@@ -232,7 +272,7 @@ function UI.ToggleSkillTree()
 	if not class then return end
 
 	local info = ZS_ZOMBIE_CLASSES[class]
-	local w, h = math.min(ScrW() * 0.85, 1100), math.min(ScrH() * 0.85, 780)
+	local w, h = math.min(ScrW() * 0.9, 1400), ScrH() * 0.94
 
 	skillMenu = vgui.Create("DFrame")
 	skillMenu:SetSize(w, h)
@@ -248,9 +288,9 @@ function UI.ToggleSkillTree()
 		surface.SetDrawColor(info.color)
 		surface.DrawOutlinedRect(0, 0, pw, ph, 2)
 
-		draw.SimpleText("Дерево навыков: " .. info.name, "ZB_InterfaceMediumLarge", 20, 30, colWhite, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
-		draw.SimpleText("Очки: " .. lply:GetNWInt("ZS_Points", 0), "ZB_InterfaceMediumLarge", pw - 50, 30, colWhite, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
-		draw.SimpleText("Урон по выжившим: 1 очко за 1 HP  |  Съеденный труп: 100 очков  |  Ветки взаимоисключающие  |  I - закрыть", "ZB_InterfaceSmall", pw * 0.5, ph - 16, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(info.name .. " skill tree", "ZB_InterfaceMediumLarge", 20, 30, colWhite, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Points: " .. lply:GetNWInt("ZS_Points", 0), "ZB_InterfaceMediumLarge", pw - 50, 30, colWhite, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Damage to survivors: 1 pt per HP  |  Devoured corpse: 100 pts  |  Branches are exclusive  |  I - close", "ZB_InterfaceSmall", pw * 0.5, ph - 16, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 
 	local body = vgui.Create("DPanel", skillMenu)

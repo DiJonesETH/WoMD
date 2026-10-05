@@ -191,7 +191,7 @@ else
 	end)
 
 	function SWEP:DrawHUD()
-		local text = self.GhostValid and "ЛКМ - поставить, Q / R - повернуть" or "Здесь поставить нельзя"
+		local text = self.GhostValid and "LMB - place, Q / R - rotate" or "Can't place here"
 		draw.SimpleTextOutlined(text, "DermaLarge", ScrW() * 0.5, ScrH() * 0.8, self.GhostValid and colOk or colBad, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 2, color_black)
 	end
 end

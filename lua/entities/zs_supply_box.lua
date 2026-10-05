@@ -139,7 +139,7 @@ else
 
 		cam.Start3D2D(pos, ang, 0.08)
 			draw.SimpleTextOutlined(info.name, "DermaLarge", 0, 0, info.color, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 2, color_black)
-			draw.SimpleTextOutlined("E - взять", "DermaDefaultBold", 0, 30, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
+			draw.SimpleTextOutlined("E - take", "DermaDefaultBold", 0, 30, color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER, 1, color_black)
 		cam.End3D2D()
 	end
 end

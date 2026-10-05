@@ -5,7 +5,7 @@ local MODE = MODE
 local TEAM_SURVIVORS = 0
 local WINNER_NONE = 3
 
-local colSurvivor = Color(60, 160, 220)
+local colSurvivor = Color(60, 140, 255)
 local colInfected = Color(170, 25, 25)
 local colPrep = Color(230, 200, 60)
 local colWhite = Color(255, 255, 255)
@@ -21,14 +21,52 @@ local function Announce(text, color)
 	announce.time = CurTime()
 end
 
+-- музыка режима: roundstart - один раз в начале подраунда, lastwave - на последней волне
+local musicStation
+
+local function PlayMusic(track)
+	if IsValid(musicStation) then musicStation:Stop() end
+
+	sound.PlayFile("sound/zbattle/zs/" .. track .. ".mp3", "noplay", function(station)
+		if not IsValid(station) then return end
+
+		station:SetVolume(track == "lastwave" and 0.8 or 1)
+		station:Play()
+		musicStation = station
+	end)
+end
+
+net.Receive("zs_music", function()
+	PlayMusic(net.ReadString())
+end)
+
+-- интро подраунда
+local introStart = 0
+local INTRO_TIME = 8
+local colIntroTitle = Color(170, 170, 170)
+
 net.Receive("zs_start", function()
-	local waves = net.ReadUInt(8)
+	net.ReadUInt(8)
 
 	classMenuShown = false
+	introStart = CurTime()
 
 	zb.RemoveFade()
-	Announce("Zombie Survival - " .. waves .. " waves", colInfected)
+	PlayMusic("roundstart")
 end)
+
+local function DrawIntro()
+	local elapsed = CurTime() - introStart
+	if elapsed > INTRO_TIME or not IsValid(lply) then return end
+
+	local alpha = math.Clamp(INTRO_TIME - elapsed, 0, 1) * math.Clamp(elapsed * 2, 0, 1) * 255
+	local survivor = lply:Team() == TEAM_SURVIVORS
+	local teamCol = survivor and colSurvivor or colInfected
+
+	draw.SimpleText("Z-City: Zombie survival", "ZB_HomicideMediumLarge", ScrW() * 0.5, ScrH() * 0.1, ColorAlpha(colIntroTitle, alpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	draw.SimpleText(survivor and "You are survivor" or "You are infected", "ZB_HomicideMediumLarge", ScrW() * 0.5, ScrH() * 0.5, ColorAlpha(teamCol, alpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+	draw.SimpleText(survivor and "Barricade, loot, and don't die" or "Feed yourself", "ZB_HomicideMedium", ScrW() * 0.5, ScrH() * 0.9, ColorAlpha(teamCol, alpha), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+end
 
 net.Receive("zs_phase", function()
 	local wave = net.ReadUInt(8)
@@ -145,6 +183,7 @@ local function DrawAnnounce()
 end
 
 function MODE:HUDPaint()
+	DrawIntro()
 	DrawRoundInfo()
 	DrawRespawnHint()
 	DrawAnnounce()
