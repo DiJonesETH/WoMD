@@ -14,39 +14,39 @@ local TEAM_SURVIVORS = 0
 -- Шанс специального предмета (ящика снабжения) в первом слоте; если не выпал - там обычный предмет
 MODE.AirdropSpecialChance = 20
 
--- Обычный лут: шансы в процентах (сумма всегда 100). Пистолеты - всегда 30%.
--- Остальное меняется линейно от первого аирдропа (p = 0) до последней волны режима (p = 1),
--- поэтому короткий режим (6 волн) проходит ту же прогрессию быстрее длинного (12 волн):
+-- Обычный лут: шансы в процентах (сумма всегда 100), меняются линейно от первого аирдропа (p = 0)
+-- до последней волны режима (p = 1), поэтому короткий режим (6 волн) проходит ту же прогрессию быстрее длинного (12 волн):
 --            p = 0 -> p = 1
--- медицина     22  ->  14
--- ближний бой  22  ->   6
--- броня        10  ->  15
--- ружья        10  ->  15
--- винтовки      6  ->  20
+-- пистолеты    30  ->  35
+-- медицина     22  ->  13
+-- ближний бой  22  ->   5
+-- броня        10  ->  14
+-- ружья        10  ->  14
+-- винтовки      6  ->  19
 local lootCategories = {
 	pistol = {
-		chance = {30, 30},
+		chance = {30, 35},
 		items = {"weapon_glock17", "weapon_makarov", "weapon_m9beretta", "weapon_hk_usp", "weapon_px4beretta", "weapon_cz75", "weapon_deagle", "weapon_revolver2"},
 	},
 	medicine = {
-		chance = {22, 14},
+		chance = {22, 13},
 		items = ZS_MEDICAL_ITEMS,
 	},
 	melee = {
-		chance = {22, 6},
+		chance = {22, 5},
 		items = {"weapon_hg_crowbar", "weapon_bat", "weapon_hatchet", "weapon_tomahawk", "weapon_hg_axe", "weapon_hg_sledgehammer", "weapon_leadpipe"},
 	},
 	armor = {
-		chance = {10, 15},
+		chance = {10, 14},
 		items = {"vest3", "vest4", "helmet1", "helmet2"},
 		armor = true,
 	},
 	shotgun = {
-		chance = {10, 15},
+		chance = {10, 14},
 		items = {"weapon_doublebarrel_short", "weapon_doublebarrel", "weapon_remington870", "weapon_xm1014"},
 	},
 	rifle = {
-		chance = {6, 20},
+		chance = {6, 19},
 		items = {"weapon_mp5", "weapon_mp7", "weapon_sks", "weapon_kar98", "weapon_draco", "weapon_ar15", "weapon_akm", "weapon_sr25"},
 	},
 }
