@@ -39,6 +39,22 @@ ZS_MEDICAL_ITEMS = {
 	"weapon_adrenaline",
 }
 
+if SERVER then
+	-- сообщения о перезарядке/повторном использовании показываются игроку один раз за жизнь
+	function ZS_NotifyOnce(ply, key, text)
+		ply.zs_NotifiedOnce = ply.zs_NotifiedOnce or {}
+		if ply.zs_NotifiedOnce[key] then return end
+
+		ply.zs_NotifiedOnce[key] = true
+
+		if ply.Notify then ply:Notify(text, 0, "zs_" .. key, 3) else ply:ChatPrint(text) end
+	end
+
+	hook.Add("PlayerSpawn", "ZS_NotifyOnceReset", function(ply)
+		ply.zs_NotifiedOnce = nil
+	end)
+end
+
 -- можно ли поставить ящик этого типа в точку (нет такого же ящика в радиусе 5 метров)
 function ZS_CanPlaceSupplyBox(boxType, pos)
 	for _, ent in ipairs(ents.FindByClass("zs_supply_box")) do

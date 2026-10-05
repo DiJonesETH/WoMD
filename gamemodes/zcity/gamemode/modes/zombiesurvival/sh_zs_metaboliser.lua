@@ -107,7 +107,6 @@ end
 
 -- модификаторы: питательная среда снижает здоровье и урон
 local function StatsDefaults(ply)
-	ply:SetNWBool("ZS_MethaneReady", false)
 	ply:SetNWBool("ZS_Green", false)
 end
 
@@ -143,8 +142,6 @@ end)
 hook.Add("PlayerSpawn", "ZS_MetaboliserLifeReset", function(ply)
 	ply.zs_NutrientUsed = nil
 	ply.zs_SpikeUsed = nil
-	ply.zs_MethaneDamage = 0
-	ply:SetNWBool("ZS_MethaneReady", false)
 end)
 
 -- гнездо и волдырь доступны заново в каждой волне
@@ -307,28 +304,10 @@ local function Reflux(ply)
 	end)
 end
 
--- Метановая избыточность: после 50 урона R взрывает тело кислотой в радиусе 5 метров
-local METHANE_THRESHOLD, METHANE_RADIUS, METHANE_DAMAGE = 50, 262, 20
+-- Метановая избыточность: после смерти тело взрывается, обливая кислотой всех в радиусе 5 метров
+local METHANE_RADIUS, METHANE_DAMAGE = 262, 20
 
-hook.Add("HomigradDamage", "ZS_MetaboliserMethane", function(ent, dmgInfo)
-	local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
-	if not IsMetaboliser(ply) or not ZS_HasSkill(ply, "methane") then return end
-
-	ply.zs_MethaneDamage = (ply.zs_MethaneDamage or 0) + dmgInfo:GetDamage()
-
-	if ply.zs_MethaneDamage >= METHANE_THRESHOLD and not ply:GetNWBool("ZS_MethaneReady", false) then
-		ply:SetNWBool("ZS_MethaneReady", true)
-		Notify(ply, "Газы готовы к взрыву - нажмите R!")
-		ply:EmitSound("npc/zombie_poison/pz_warn1.wav", 75)
-	end
-end)
-
-local function MethaneExplode(ply)
-	if not ply:GetNWBool("ZS_MethaneReady", false) then return end
-	ply:SetNWBool("ZS_MethaneReady", false)
-
-	local pos = ply:GetPos() + ply:OBBCenter()
-
+local function MethaneExplode(ply, pos)
 	for _, victim in player.Iterator() do
 		if not IsLivingSurvivor(victim) or victim:GetPos():Distance(pos) > METHANE_RADIUS then continue end
 
@@ -353,9 +332,24 @@ local function MethaneExplode(ply)
 	effect:SetOrigin(pos)
 	effect:SetColor(BLOOD_COLOR_YELLOW)
 	util.Effect("BloodImpact", effect)
-
-	ply:Kill()
 end
+
+hook.Add("PlayerDeath", "ZS_MetaboliserMethane", function(ply)
+	if zb.ROUND_STATE ~= 1 then return end
+	if ply.PlayerClassName ~= "zs_metaboliser" or not ZS_HasSkill(ply, "methane") then return end
+
+	local fallback = ply:GetPos() + ply:OBBCenter()
+
+	-- взрыв в точке трупа (регдолл создается в момент смерти)
+	timer.Simple(0, function()
+		if not IsValid(ply) then return end
+
+		local ragdoll = IsValid(ply.RagdollDeath) and ply.RagdollDeath or ply:GetNWEntity("RagdollDeath")
+		local pos = IsValid(ragdoll) and ragdoll:WorldSpaceCenter() or fallback
+
+		MethaneExplode(ply, pos)
+	end)
+end)
 
 -- Гнездо и мясной мицелий: точка на земле перед игроком
 local function GroundSpot(ply, dist)
@@ -371,7 +365,7 @@ end
 
 local function BuildNest(ply)
 	if ply.zs_NestUsed then
-		Notify(ply, "Гнездо уже построено в этой волне")
+		ZS_NotifyOnce(ply, "nest_used", "Гнездо можно построить один раз за волну")
 		return
 	end
 
@@ -394,7 +388,7 @@ end
 
 local function PlaceBlister(ply)
 	if ply.zs_BlisterUsed then
-		Notify(ply, "Волдырь уже поставлен в этой волне")
+		ZS_NotifyOnce(ply, "blister_used", "Волдырь можно поставить один раз за волну")
 		return
 	end
 
@@ -468,8 +462,6 @@ hook.Add("KeyPress", "ZS_MetaboliserAbilities", function(ply, key)
 	if key == IN_RELOAD then
 		if ply:KeyDown(IN_DUCK) then
 			if ZS_HasSkill(ply, "nutrient_medium") then SpawnNutrientNPC(ply) end
-		elseif ZS_HasSkill(ply, "methane") then
-			MethaneExplode(ply)
 		elseif ZS_HasSkill(ply, "bacterial_seeding") then
 			BacterialSeeding(ply)
 		end

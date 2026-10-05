@@ -13,7 +13,7 @@ SWEP.BoxType = "arsenal"
 SWEP.IsZSSupplyBox = true
 
 SWEP.ViewModel = ""
-SWEP.WorldModel = "models/props/de_prodigy/ammo_can_01.mdl"
+SWEP.WorldModel = ""
 SWEP.HoldType = "duel"
 SWEP.UseHands = false
 SWEP.DrawCrosshair = false
@@ -37,7 +37,6 @@ function SWEP:Initialize()
 	if info then
 		self.PrintName = info.name
 		self.Instructions = info.desc .. "\n\nLMB - place the box\nQ / R - rotate"
-		self.WorldModel = info.model
 	end
 end
 
@@ -97,6 +96,10 @@ if SERVER then
 		ply:StripWeapon(wep:GetClass())
 	end)
 else
+	-- в руках персонажа ящик не рисуется
+	function SWEP:DrawWorldModel() end
+	function SWEP:DrawWorldModelTranslucent() end
+
 	function SWEP:PrimaryAttack()
 		if not IsFirstTimePredicted() then return end
 
@@ -158,6 +161,7 @@ else
 	end
 
 	local colOk, colBad = Color(80, 255, 80), Color(255, 60, 60)
+	local wireframe = Material("models/wireframe")
 
 	local function GetHeldBox()
 		local ply = LocalPlayer()
@@ -178,19 +182,12 @@ else
 
 		local col = wep.GhostValid and colOk or colBad
 
+		-- контур ящика: материал models/wireframe
+		render.MaterialOverride(wireframe)
 		render.SetColorModulation(col.r / 255, col.g / 255, col.b / 255)
-		render.SetBlend(0.45)
 		ghost:DrawModel()
-		render.SetBlend(1)
 		render.SetColorModulation(1, 1, 1)
-	end)
-
-	-- контур ящика
-	hook.Add("PreDrawHalos", "ZS_SupplyBoxGhost", function()
-		local wep = GetHeldBox()
-		if not wep or not IsValid(wep.Ghost) or not wep.Ghost.ShouldShow then return end
-
-		halo.Add({wep.Ghost}, wep.GhostValid and colOk or colBad, 2, 2, 2, true, true)
+		render.MaterialOverride()
 	end)
 
 	function SWEP:DrawHUD()

@@ -93,7 +93,7 @@ if SERVER then
 		local left = (self.NextUse[id] or 0) - CurTime()
 
 		if left > 0 then
-			Notify(ply, "Ящик будет готов через " .. math.ceil(left) .. " сек.")
+			ZS_NotifyOnce(ply, "supplybox_cooldown", "Ящик снабжения выдает предметы раз в 2 минуты")
 			return
 		end
 
