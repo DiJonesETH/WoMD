@@ -230,6 +230,8 @@ local function UpdatePhase(mode, force)
 
 	if active then
 		hook.Run("ZS_WaveStart", wave)
+	else
+		hook.Run("ZS_PrepStart", wave)
 	end
 
 	net.Start("zs_phase")
