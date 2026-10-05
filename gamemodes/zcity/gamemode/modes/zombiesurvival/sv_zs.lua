@@ -34,7 +34,7 @@ local survivorMelee = {
 	"weapon_bat",
 	"weapon_leadpipe",
 	"weapon_hatchet",
-	"weapon_hammer",
+	"weapon_zs_hammer",
 	"weapon_pocketknife",
 	"weapon_hg_shovel",
 	"weapon_pan",
@@ -153,6 +153,9 @@ local function SetupSurvivor(ply)
 	ApplyAppearance(ply, nil, nil, nil, true)
 
 	ply.zs_Attackers = nil
+
+	-- Z отвечает за проход сквозь баррикады
+	ply:SetCanZoom(false)
 
 	zb.GiveRole(ply, "Survivor", colSurvivor)
 
@@ -274,6 +277,9 @@ end
 function MODE:RoundStart()
 	self.saved.StartTime = CurTime()
 
+	-- здоровье всех пропов карты (баррикады, sh_zs_barricade.lua)
+	ZS_BARRICADE.SetupProps()
+
 	UpdatePhase(self, true)
 end
 
@@ -317,6 +323,9 @@ function MODE:EndRound()
 	SetPhaseGlobals(wave, waves, false, 0)
 
 	for _, ply in player.Iterator() do
+		ply:SetCanZoom(true)
+		ZS_BARRICADE.SetGhosting(ply, false)
+
 		if ply:Team() == winner then
 			ply:GiveExp(math.random(15, 30))
 			ply:GiveSkill(math.Rand(0.1, 0.15))

@@ -75,8 +75,8 @@ if SERVER then
 		tech = function(ply)
 			GiveItem(ply, "weapon_ducttape")
 
-			if not ply:HasWeapon("weapon_hammer") then
-				ply:Give("weapon_hammer")
+			if not ply:HasWeapon("weapon_zs_hammer") then
+				ply:Give("weapon_zs_hammer")
 			end
 
 			ply:GiveAmmo(32, "Nails")
