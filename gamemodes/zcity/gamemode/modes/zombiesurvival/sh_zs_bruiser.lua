@@ -1,7 +1,7 @@
 local MODE = MODE
 
 -- Эффекты навыков дерева bruiser (описания и цены: MODE.SkillTrees.zs_bruiser в sh_zs.lua)
--- Бросок (M2/M1) и тупой урон когтей реализованы в weapon_hands_sh.lua
+-- Тупой урон когтей реализован в weapon_hands_sh.lua
 
 local TEAM_SURVIVORS = 0
 
@@ -253,11 +253,95 @@ local function MassImpulse(ply)
 	ply:EmitSound("npc/zombie_poison/pz_alert" .. math.random(2) .. ".wav", 85, math.random(90, 100))
 end
 
+-- удар о стену на скорости: каменная крошка, вмятина и толчок вокруг, как у берсерка (fury13, sv_util.lua)
+local function ImpulseWallHit(ply, tr, speed)
+	ply:SetNWFloat("ZS_ImpulseUntil", 0)
+
+	local effect = EffectData()
+	effect:SetStart(tr.HitPos)
+	effect:SetMagnitude(speed / 200)
+	effect:SetNormal(tr.HitNormal)
+	util.Effect("zippy_impact_concrete", effect)
+
+	for _, ent in ipairs(ents.FindInSphere(tr.HitPos, speed / 7)) do
+		if ent == ply then continue end
+
+		if ent:IsPlayer() and ent:IsOnGround() then
+			ent:SetVelocity(tr.HitNormal * speed / 5)
+			ent:SetGroundEntity(NULL)
+		end
+
+		local phys = ent:GetPhysicsObject()
+		if IsValid(phys) then
+			phys:AddVelocity(tr.HitNormal * speed * 2 / 5)
+			phys:Wake()
+		end
+	end
+
+	ply:EmitSound("physics/concrete/boulder_impact_hard" .. math.random(4) .. ".wav", 85)
+	util.Decal("Rollermine.Crater", tr.HitPos + tr.HitNormal, tr.HitPos - tr.HitNormal, ply)
+	util.ScreenShake(tr.HitPos, 8, 40, 0.6, 400)
+end
+
+-- пропы и двери на пути импульса сносятся
+local IMPULSE_PROP_DAMAGE, IMPULSE_PROP_PUSH = 150, 700
+
+local function ImpulseSmash(ply, ent, forward)
+	if hgIsDoor and hgIsDoor(ent) then
+		if hgBlastThatDoor then hgBlastThatDoor(ent, forward * 600 + ply:GetVelocity()) end
+		ent:EmitSound("physics/wood/wood_crate_break" .. math.random(5) .. ".wav", 85)
+		return
+	end
+
+	if not string.StartWith(ent:GetClass(), "prop_physics") and not string.StartWith(ent:GetClass(), "func_breakable") then return end
+
+	local dmg = DamageInfo()
+	dmg:SetAttacker(ply)
+	dmg:SetInflictor(ply)
+	dmg:SetDamage(IMPULSE_PROP_DAMAGE)
+	dmg:SetDamageType(DMG_CLUB)
+	dmg:SetDamageForce(forward * 5000)
+	dmg:SetDamagePosition(ent:WorldSpaceCenter())
+	ent:TakeDamageInfo(dmg)
+
+	if not IsValid(ent) then return end
+
+	local phys = ent:GetPhysicsObject()
+	if IsValid(phys) and phys:IsMotionEnabled() then
+		phys:AddVelocity(forward * IMPULSE_PROP_PUSH + Vector(0, 0, 150))
+		phys:Wake()
+	end
+
+	ent:EmitSound("physics/wood/wood_plank_impact_hard" .. math.random(5) .. ".wav", 80)
+end
+
 local function ImpulseThink(ply)
 	if ply:GetNWFloat("ZS_ImpulseUntil", 0) < CurTime() then return end
 
 	local center = ply:GetPos() + ply:OBBCenter()
 	local forward = Angle(0, ply:EyeAngles().y, 0):Forward()
+
+	for _, ent in ipairs(ents.FindInSphere(center + forward * 32, 48)) do
+		if ent == ply or ent:IsPlayer() or ent:IsNPC() or ent:IsRagdoll() or ply.zs_ImpulseHit[ent] then continue end
+
+		ply.zs_ImpulseHit[ent] = true
+		ImpulseSmash(ply, ent, forward)
+	end
+
+	local speed = ply:GetVelocity():Length2D()
+	if speed > 300 then
+		local tr = util.TraceLine({
+			start = center,
+			endpos = center + forward * 40,
+			mask = MASK_SOLID_BRUSHONLY,
+			filter = ply,
+		})
+
+		if tr.HitWorld and not tr.HitSky and tr.HitNormal.z < 0.5 then
+			ImpulseWallHit(ply, tr, speed)
+			return
+		end
+	end
 
 	for _, victim in ipairs(ents.FindInSphere(center + forward * 20, 48)) do
 		if not IsLivingSurvivor(victim) or ply.zs_ImpulseHit[victim] or IsValid(victim.FakeRagdoll) then continue end
@@ -285,6 +369,61 @@ local function ImpulseThink(ply)
 
 		victim:EmitSound("physics/body/body_medium_impact_hard" .. math.random(6) .. ".wav", 80)
 	end
+end
+
+-- Травматическая пощечина: удар отбрасывает выжившего в сторону и роняет его в регдолл
+local SLAP_RANGE, SLAP_COOLDOWN, SLAP_FORCE = 70, 6, 650
+
+local function TraumaticSlap(ply)
+	if (ply.zs_NextSlap or 0) > CurTime() then return end
+
+	local eye = ply:EyePos()
+
+	ply:LagCompensation(true)
+	local tr = util.TraceHull({
+		start = eye,
+		endpos = eye + ply:GetAimVector() * SLAP_RANGE,
+		mins = Vector(-10, -10, -10),
+		maxs = Vector(10, 10, 10),
+		filter = {ply, ply.FakeRagdoll},
+		mask = MASK_SHOT,
+	})
+	ply:LagCompensation(false)
+
+	local ent = tr.Entity
+	local victim = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
+	if not IsLivingSurvivor(victim) then return end
+
+	ply.zs_NextSlap = CurTime() + SLAP_COOLDOWN
+
+	-- в сторону: вправо или влево от зараженного, немного вперед и вверх
+	local side = ply:GetRight() * (math.random(2) == 1 and 1 or -1)
+	local push = side * SLAP_FORCE + ply:GetForward() * 150 + Vector(0, 0, 220)
+
+	local dmg = DamageInfo()
+	dmg:SetAttacker(ply)
+	dmg:SetInflictor(ply)
+	dmg:SetDamage(10)
+	dmg:SetDamageType(DMG_CLUB)
+	dmg:SetDamageForce(push * 10)
+	dmg:SetDamagePosition(tr.HitPos)
+	victim:TakeDamageInfo(dmg)
+
+	if not IsValid(victim.FakeRagdoll) then hg.Fake(victim) end
+
+	local ragdoll = victim.FakeRagdoll
+	if IsValid(ragdoll) then
+		for i = 0, ragdoll:GetPhysicsObjectCount() - 1 do
+			local phys = ragdoll:GetPhysicsObjectNum(i)
+			if IsValid(phys) then phys:AddVelocity(push) end
+		end
+	else
+		victim:SetVelocity(push)
+	end
+
+	ply:EmitSound("npc/zombie/claw_strike" .. math.random(3) .. ".wav", 85, math.random(80, 90))
+	victim:EmitSound("physics/body/body_medium_impact_hard" .. math.random(6) .. ".wav", 80)
+	ply:AnimRestartGesture(GESTURE_SLOT_ATTACK_AND_RELOAD, ACT_GMOD_GESTURE_RANGE_ZOMBIE, true)
 end
 
 local function Guillotine(ply)
@@ -336,6 +475,8 @@ hook.Add("KeyPress", "ZS_BruiserAbilities", function(ply, key)
 
 	if key == IN_ATTACK and ZS_HasSkill(ply, "mass_impulse") then
 		MassImpulse(ply)
+	elseif key == IN_ATTACK and ZS_HasSkill(ply, "traumatic_slap") then
+		TraumaticSlap(ply)
 	elseif key == IN_ATTACK2 and ZS_HasSkill(ply, "guillotine") then
 		Guillotine(ply)
 	end

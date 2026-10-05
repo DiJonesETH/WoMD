@@ -101,7 +101,11 @@ if SERVER then
 
 		local id = ply:SteamID64() or ply:EntIndex()
 		if self.Opened[id] then
-			ZS_NotifyOnce(ply, "airdrop_taken", "You have already taken your cargo from this crate")
+			self.Warned = self.Warned or {}
+			if not self.Warned[id] then
+				self.Warned[id] = true
+				ply:ChatPrint("[Airdrop] You have already taken your cargo from this crate")
+			end
 			return
 		end
 

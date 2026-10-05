@@ -413,8 +413,14 @@ end)
 util.AddNetworkString("open_guilt_menu")
 util.AddNetworkString("forgive_player")
 
+-- у зараженных Zombie Survival нет кармы: ни сообщений, ни меню прощения
+local function IsZSInfected(ply)
+    local rnd = CurrentRound()
+    return rnd and rnd.name == "zs" and ply:Team() == 1
+end
+
 net.Receive("open_guilt_menu",function(len, ply)
-    if ply:Alive() then return end
+    if ply:Alive() or IsZSInfected(ply) then return end
     local tbl = zb.HarmDoneKarma[ply] or {}
     net.Start("open_guilt_menu")
     net.WriteTable(tbl)
@@ -440,7 +446,7 @@ net.Receive("forgive_player", function(len, ply)
 end)
 
 hook.Add("Player Spawn", "GuiltKnown",function(ply)
-    if ply.Karma then
+    if ply.Karma and not IsZSInfected(ply) then
         ply:ChatPrint("Your current karma is "..tostring(math.Round(ply.Karma)).."")
     end
 end)

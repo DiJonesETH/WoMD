@@ -77,17 +77,17 @@ MODE.SkillTrees = {
 		},
 		mass_impulse = {
 			name = "Mass Impulse",
-			desc = "The infected makes a long sprint forward.\n+ Press E+M1 to sprint forward sharply",
-			short = "E+M1: charge forward",
+			desc = "The infected makes a long sprint forward.\n+ Press E+M1 to sprint forward sharply, smashing props and doors in your way",
+			short = "E+M1: charge, smash props and doors",
 			cost = 600,
 			branch = "left",
 			requires = {"strong_legs"},
 			pos = {x = 0, y = 1},
 		},
-		throw = {
-			name = "Throw",
-			desc = "The infected gains the ability to throw objects with force.\n+ Grab an object with M2 and, while holding M2, throw it with M1",
-			short = "M2 - grab, M1 - throw",
+		traumatic_slap = {
+			name = "Traumatic Slap",
+			desc = "The infected gains the ability to strike with tremendous force.\n+ Press E+M1 next to a survivor to slap them aside and knock them down",
+			short = "E+M1: slap a survivor aside",
 			cost = 200,
 			branch = "right",
 			requires = {"anabolism"},
@@ -99,7 +99,7 @@ MODE.SkillTrees = {
 			short = "hits knock down and break",
 			cost = 300,
 			branch = "right",
-			requires = {"throw"},
+			requires = {"traumatic_slap"},
 			pos = {x = 2, y = 2},
 		},
 		guillotine = {

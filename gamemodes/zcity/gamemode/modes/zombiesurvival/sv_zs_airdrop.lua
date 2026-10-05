@@ -130,7 +130,7 @@ function ZS_GiveAirdropLoot(ply, crate)
 		got[#got + 1] = GiveLootItem(ply, crate, cat, cat.items[math.random(#cat.items)])
 	end
 
-	ply:ChatPrint("Cargo: " .. table.concat(got, ", "))
+	ply:ChatPrint("[Airdrop] Cargo: " .. table.concat(got, ", "))
 end
 
 -- точка сброса: над случайной точкой карты, где сверху открытое небо
@@ -218,9 +218,15 @@ function MODE:SpawnAirdrop()
 		crate:StartFalling()
 	end
 
+	-- оповещение в чат всем: выжившим - где искать, зараженным - что у выживших пополнение
 	local survivors = {}
 	for _, ply in player.Iterator() do
-		if ply:Team() == TEAM_SURVIVORS then survivors[#survivors + 1] = ply end
+		if ply:Team() == TEAM_SURVIVORS then
+			survivors[#survivors + 1] = ply
+			ply:ChatPrint("[Airdrop] Supplies dropped! Look for the red flare. The crate disappears in 2 minutes.")
+		else
+			ply:ChatPrint("[Airdrop] The survivors received a supply drop. Look for the red flare.")
+		end
 	end
 
 	net.Start("zs_airdrop")

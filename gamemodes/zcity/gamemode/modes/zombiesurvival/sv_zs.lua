@@ -121,14 +121,64 @@ local function GetPhase(mode)
 	return wave, active, phaseEnd, false
 end
 
-local function GetZombieSpawnPos(ply)
-	local points = zb.GetMapPoints("RandomSpawns")
+-- точки спавна игроков карты: точки Spawnpoint из редактора, иначе стандартные энтити спавна
+local playerSpawnClasses = {
+	"info_player_start", "info_player_deathmatch", "info_player_combine", "info_player_rebel",
+	"info_player_counterterrorist", "info_player_terrorist", "info_player_axis", "info_player_allies",
+	"gmod_player_start", "info_player_teamspawn", "info_player_coop", "info_player_human", "info_player_zombie",
+}
 
+local function GetPlayerSpawnPoints()
+	local points = zb.GetMapPoints("Spawnpoint")
 	if points and #points > 0 then
-		return zb:FurthestFromEveryone(zb.TranslatePointsToVectors(points))
+		return zb.TranslatePointsToVectors(points)
 	end
 
-	return zb:GetRandomSpawn(ply)
+	local list = {}
+	for _, class in ipairs(playerSpawnClasses) do
+		for _, ent in ipairs(ents.FindByClass(class)) do
+			list[#list + 1] = ent:GetPos()
+		end
+	end
+
+	return list
+end
+
+-- зараженный появляется на случайной из самых дальних от живых выживших точек спавна игроков
+MODE.ZombieSpawnChoices = 3
+
+local function GetZombieSpawnPos(ply)
+	local points = GetPlayerSpawnPoints()
+	if #points == 0 then return zb:GetRandomSpawn(ply) end
+
+	local survivors = {}
+	for _, other in player.Iterator() do
+		if other:Alive() and other:Team() == TEAM_SURVIVORS then survivors[#survivors + 1] = other:GetPos() end
+	end
+
+	local scored = {}
+	for _, pos in ipairs(points) do
+		local nearest = math.huge
+		for _, spos in ipairs(survivors) do
+			nearest = math.min(nearest, pos:DistToSqr(spos))
+		end
+
+		-- занятые точки (кто-то стоит вплотную) в конце списка
+		local occupied = false
+		for _, ent in ipairs(ents.FindInSphere(pos, 32)) do
+			if ent:IsPlayer() and ent:Alive() and ent ~= ply then occupied = true break end
+		end
+
+		scored[#scored + 1] = {pos = pos, dist = nearest, occupied = occupied}
+	end
+
+	table.sort(scored, function(a, b)
+		if a.occupied ~= b.occupied then return not a.occupied end
+		return a.dist > b.dist
+	end)
+
+	local choices = math.min(MODE.ZombieSpawnChoices, #scored)
+	return scored[math.random(choices)].pos
 end
 
 local function SpawnZombie(mode, ply, nest)

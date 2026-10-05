@@ -75,6 +75,10 @@ local pressed
 hook.Add("HUDPaint","shownotification",function()
     if LocalPlayer():Alive() then return end
 
+    -- у зараженных Zombie Survival нет кармы
+    local rnd = CurrentRound()
+    if rnd and rnd.name == "zs" and LocalPlayer():Team() == 1 then return end
+
     if showstuff > CurTime() then
         local w, h = ScrW(), ScrH()
         local x, y = w / 2, h / 25 * 24
