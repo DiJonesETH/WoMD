@@ -9,6 +9,9 @@
 
 ZS_BASE_MODEL = "models/zcity/player/zombie_classic.mdl"
 
+-- множитель урона когтей (у headcrabzombie 5): слабый тупой урон
+ZS_CLAW_DAMAGE_MUL = 2.5
+
 ZS_ZOMBIE_CLASSES = {
 	zs_bruiser = {
 		key = "bruiser",

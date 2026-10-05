@@ -152,7 +152,7 @@ local function SetupSurvivor(ply)
 	ply:SetupTeam(TEAM_SURVIVORS)
 	ApplyAppearance(ply, nil, nil, nil, true)
 
-	ply.zs_ClawHealth = nil
+	ply.zs_Attackers = nil
 
 	zb.GiveRole(ply, "Survivor", colSurvivor)
 
@@ -342,6 +342,18 @@ function MODE:PlayerDeath(ply)
 	ply.zs_NextSpawn = CurTime() + self.ZombieRespawnDelay
 
 	self.Infected.MarkCorpse(ply)
+
+	-- очки за убийство выжившего: убийце и всем, кто его ранил
+	if ply:Team() == TEAM_SURVIVORS then
+		for zombie in pairs(ply.zs_Attackers or {}) do
+			if IsValid(zombie) and ZS_IsZombie(zombie) then
+				self.Infected.AddPoints(zombie, self.PointsPerKill)
+				zombie:ChatPrint("+" .. self.PointsPerKill .. " points: " .. ply:Name() .. " killed")
+			end
+		end
+
+		ply.zs_Attackers = nil
+	end
 
 	if ply:Team() == TEAM_INFECTED then
 		self:RemoveZombieCorpse(ply)

@@ -290,7 +290,7 @@ function UI.ToggleSkillTree()
 
 		draw.SimpleText(info.name .. " skill tree", "ZB_InterfaceMediumLarge", 20, 30, colWhite, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 		draw.SimpleText("Points: " .. lply:GetNWInt("ZS_Points", 0), "ZB_InterfaceMediumLarge", pw - 50, 30, colWhite, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
-		draw.SimpleText("Damage to survivors: 2 pts per HP  |  Devoured corpse: 100 pts  |  Branches are exclusive  |  I - close", "ZB_InterfaceSmall", pw * 0.5, ph - 16, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Hit: 1 pt per HP  |  Kill or assist: 200  |  Corpse: 200  |  +1 per sec  |  Branches are exclusive  |  I - close", "ZB_InterfaceSmall", pw * 0.5, ph - 16, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 
 	local body = vgui.Create("DPanel", skillMenu)

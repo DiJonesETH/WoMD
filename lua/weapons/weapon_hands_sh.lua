@@ -1746,9 +1746,11 @@ function SWEP:AttackFront(special_attack, rand)
 		local Dam = DamageInfo()
 		Dam:SetAttacker(owner)
 		Dam:SetInflictor(self)
-		Dam:SetDamage(DamageAmt * Mul * 0.75 * (clawClasses[owner.PlayerClassName] and 5 or 1))
+		-- когти зараженных Zombie Survival бьют слабым тупым уроном (кровотечение с шансом, sv_zs_infected.lua)
+		local zsClaws = zsClawClasses[owner.PlayerClassName]
+		Dam:SetDamage(DamageAmt * Mul * 0.75 * (zsClaws and (ZS_CLAW_DAMAGE_MUL or 2.5) or clawClasses[owner.PlayerClassName] and 5 or 1))
 		Dam:SetDamageForce(AimVec * Mul ^ 2)
-		Dam:SetDamageType((clawClasses[owner.PlayerClassName] or (Ent:GetClass() == "func_breakable_surf")) and not owner:GetNWBool("ZS_BluntClaws", false) and DMG_SLASH or DMG_CLUB)
+		Dam:SetDamageType((clawClasses[owner.PlayerClassName] or (Ent:GetClass() == "func_breakable_surf")) and not zsClaws and DMG_SLASH or DMG_CLUB)
 		Dam:SetDamagePosition(HitPos)
 		Ent:TakeDamageInfo(Dam)
 
