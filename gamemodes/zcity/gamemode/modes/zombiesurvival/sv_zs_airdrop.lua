@@ -1,7 +1,7 @@
 local MODE = MODE
 
 -- Аирдроп выживших: со второй волны в каждую подготовку с неба падает ящик (lua/entities/zs_airdrop.lua).
--- Каждый выживший получает из него свой лут: 1 специальный предмет (ящик снабжения) и 2 обычных.
+-- Каждый выживший получает из него свой лут: 3 предмета, первый с шансом 20% - специальный (ящик снабжения).
 
 util.AddNetworkString("zs_airdrop")
 
@@ -11,46 +11,69 @@ MODE.AirdropMaxDropHeight = 3000
 
 local TEAM_SURVIVORS = 0
 
--- обычный лут; вес винтовок и ружей растет с номером волны
+-- Шанс специального предмета (ящика снабжения) в первом слоте; если не выпал - там обычный предмет
+MODE.AirdropSpecialChance = 20
+
+-- Обычный лут: шансы в процентах (сумма всегда 100). Пистолеты - всегда 30%.
+-- Остальное меняется линейно от первого аирдропа (p = 0) до последней волны режима (p = 1),
+-- поэтому короткий режим (6 волн) проходит ту же прогрессию быстрее длинного (12 волн):
+--            p = 0 -> p = 1
+-- медицина     22  ->  14
+-- ближний бой  22  ->   6
+-- броня        10  ->  15
+-- ружья        10  ->  15
+-- винтовки      6  ->  20
 local lootCategories = {
 	pistol = {
-		weight = function(wave) return 30 end,
+		chance = {30, 30},
 		items = {"weapon_glock17", "weapon_makarov", "weapon_m9beretta", "weapon_hk_usp", "weapon_px4beretta", "weapon_cz75", "weapon_deagle", "weapon_revolver2"},
 	},
 	medicine = {
-		weight = function(wave) return 25 end,
+		chance = {22, 14},
 		items = ZS_MEDICAL_ITEMS,
 	},
 	melee = {
-		weight = function(wave) return 20 end,
+		chance = {22, 6},
 		items = {"weapon_hg_crowbar", "weapon_bat", "weapon_hatchet", "weapon_tomahawk", "weapon_hg_axe", "weapon_hg_sledgehammer", "weapon_leadpipe"},
 	},
 	armor = {
-		weight = function(wave) return 10 + wave end,
+		chance = {10, 15},
 		items = {"vest3", "vest4", "helmet1", "helmet2"},
 		armor = true,
 	},
 	shotgun = {
-		weight = function(wave) return 4 + wave * 2 end,
+		chance = {10, 15},
 		items = {"weapon_doublebarrel_short", "weapon_doublebarrel", "weapon_remington870", "weapon_xm1014"},
 	},
 	rifle = {
-		weight = function(wave) return math.max(wave - 1, 0) * 4 end,
+		chance = {6, 20},
 		items = {"weapon_mp5", "weapon_mp7", "weapon_sks", "weapon_kar98", "weapon_draco", "weapon_ar15", "weapon_akm", "weapon_sr25"},
 	},
 }
 
 local specialItems = {"weapon_zs_box_arsenal", "weapon_zs_box_medical", "weapon_zs_box_tech"}
 
-local function PickCategory(wave)
-	local total = 0
-	for _, cat in pairs(lootCategories) do
-		total = total + cat.weight(wave)
-	end
+-- прогрессия 0..1: первый аирдроп (волна AirdropFromWave) -> последняя волна режима
+local function GetProgress()
+	local mode = CurrentRound()
+	local first = mode and mode.AirdropFromWave or 2
+	local wave = GetGlobalInt("ZS_Wave", first)
+	local waves = GetGlobalInt("ZS_Waves", 6)
 
-	local roll = math.Rand(0, total)
+	if waves <= first then return 1 end
+
+	return math.Clamp((wave - first) / (waves - first), 0, 1)
+end
+
+local function CategoryChance(cat, progress)
+	return Lerp(progress, cat.chance[1], cat.chance[2])
+end
+
+local function PickCategory(progress)
+	local roll = math.Rand(0, 100)
+
 	for _, cat in SortedPairs(lootCategories) do
-		roll = roll - cat.weight(wave)
+		roll = roll - CategoryChance(cat, progress)
 		if roll <= 0 then return cat end
 	end
 
@@ -86,15 +109,22 @@ local function GiveLootItem(ply, crate, cat, class)
 end
 
 function ZS_GiveAirdropLoot(ply, crate)
-	local wave = GetGlobalInt("ZS_Wave", 1)
+	local mode = CurrentRound()
+	local progress = GetProgress()
 	local got = {}
+	local regular = 2
 
-	local special = specialItems[math.random(#specialItems)]
-	ply:Give(special)
-	got[#got + 1] = ItemName(special)
+	-- слот специального предмета: ящик снабжения с шансом AirdropSpecialChance, иначе обычный предмет
+	if math.random(100) <= (mode and mode.AirdropSpecialChance or 20) then
+		local special = specialItems[math.random(#specialItems)]
+		ply:Give(special)
+		got[#got + 1] = ItemName(special)
+	else
+		regular = 3
+	end
 
-	for _ = 1, 2 do
-		local cat = PickCategory(wave)
+	for _ = 1, regular do
+		local cat = PickCategory(progress)
 		got[#got + 1] = GiveLootItem(ply, crate, cat, cat.items[math.random(#cat.items)])
 	end
 
