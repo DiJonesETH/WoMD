@@ -128,7 +128,7 @@ function ZS_GiveAirdropLoot(ply, crate)
 		got[#got + 1] = GiveLootItem(ply, crate, cat, cat.items[math.random(#cat.items)])
 	end
 
-	ply:ChatPrint("Груз: " .. table.concat(got, ", "))
+	ply:ChatPrint("Cargo: " .. table.concat(got, ", "))
 end
 
 -- точка сброса: над случайной точкой карты, где сверху открытое небо

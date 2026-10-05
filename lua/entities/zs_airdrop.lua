@@ -101,7 +101,7 @@ if SERVER then
 
 		local id = ply:SteamID64() or ply:EntIndex()
 		if self.Opened[id] then
-			ZS_NotifyOnce(ply, "airdrop_taken", "Вы уже забрали свой груз из этого ящика")
+			ZS_NotifyOnce(ply, "airdrop_taken", "You have already taken your cargo from this crate")
 			return
 		end
 

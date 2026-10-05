@@ -51,12 +51,12 @@ if SERVER then
 			local clip = IsValid(wep) and wep:GetMaxClip1() or 0
 
 			if ammoType < 0 or clip <= 0 then
-				Notify(ply, "Возьмите в руки огнестрельное оружие")
+				Notify(ply, "Hold a firearm in your hands")
 				return false
 			end
 
 			ply:GiveAmmo(clip * 3, ammoType)
-			Notify(ply, "Получено 3 магазина (" .. (game.GetAmmoName(ammoType) or "?") .. ")")
+			Notify(ply, "Received 3 magazines (" .. (game.GetAmmoName(ammoType) or "?") .. ")")
 
 			return true
 		end,
@@ -67,7 +67,7 @@ if SERVER then
 				GiveItem(ply, ZS_MEDICAL_ITEMS[math.random(#ZS_MEDICAL_ITEMS)])
 			end
 
-			Notify(ply, "Получены медикаменты")
+			Notify(ply, "Received medical supplies")
 			return true
 		end,
 
@@ -80,7 +80,7 @@ if SERVER then
 			end
 
 			ply:GiveAmmo(32, "Nails")
-			Notify(ply, "Получены скотч, молоток и гвозди")
+			Notify(ply, "Received duct tape, a hammer and nails")
 
 			return true
 		end,
@@ -93,7 +93,7 @@ if SERVER then
 		local left = (self.NextUse[id] or 0) - CurTime()
 
 		if left > 0 then
-			ZS_NotifyOnce(ply, "supplybox_cooldown", "Ящик снабжения выдает предметы раз в 2 минуты")
+			ZS_NotifyOnce(ply, "supplybox_cooldown", "Supply boxes give items once every 2 minutes")
 			return
 		end
 

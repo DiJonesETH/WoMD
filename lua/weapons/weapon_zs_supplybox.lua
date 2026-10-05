@@ -78,7 +78,7 @@ if SERVER then
 		if not pos then return end
 
 		if not ZS_CanPlaceSupplyBox(wep.BoxType, pos) then
-			if ply.Notify then ply:Notify("Такой же ящик уже стоит ближе 5 метров", 0, "zs_supplybox", 3) end
+			if ply.Notify then ply:Notify("A box of this type is already within 5 meters", 0, "zs_supplybox", 3) end
 			return
 		end
 

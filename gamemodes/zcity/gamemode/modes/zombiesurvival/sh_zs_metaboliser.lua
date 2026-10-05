@@ -365,13 +365,13 @@ end
 
 local function BuildNest(ply)
 	if ply.zs_NestUsed then
-		ZS_NotifyOnce(ply, "nest_used", "Гнездо можно построить один раз за волну")
+		ZS_NotifyOnce(ply, "nest_used", "You can build a nest only once per wave")
 		return
 	end
 
 	local pos = GroundSpot(ply, 120)
 	if not pos then
-		Notify(ply, "Здесь нельзя построить гнездо")
+		Notify(ply, "You can't build a nest here")
 		return
 	end
 
@@ -383,18 +383,18 @@ local function BuildNest(ply)
 	nest:Spawn()
 
 	nest:EmitSound("physics/flesh/flesh_bloody_break.wav", 75, 70)
-	Notify(ply, "Гнездо построено")
+	Notify(ply, "Nest built")
 end
 
 local function PlaceBlister(ply)
 	if ply.zs_BlisterUsed then
-		ZS_NotifyOnce(ply, "blister_used", "Волдырь можно поставить один раз за волну")
+		ZS_NotifyOnce(ply, "blister_used", "You can grow a blister only once per wave")
 		return
 	end
 
 	local pos = GroundSpot(ply, 100)
 	if not pos then
-		Notify(ply, "Здесь нельзя вырастить волдырь")
+		Notify(ply, "You can't grow a blister here")
 		return
 	end
 
@@ -433,7 +433,7 @@ local function BacterialSeeding(ply)
 	seeded[ally] = CurTime() + SEED_TIME
 
 	ply:EmitSound("npc/barnacle/barnacle_gulp" .. math.random(2) .. ".wav", 70)
-	Notify(ply, "Посев: союзник лечится " .. SEED_TIME .. " сек.")
+	Notify(ply, "Seeding: your ally heals for " .. SEED_TIME .. " sec.")
 end
 
 -- Питательная среда и стадные феромоны (CTRL+R)
