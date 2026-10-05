@@ -51,7 +51,7 @@ MODE.SkillTrees = {
 	zs_bruiser = {
 		anabolism = {
 			name = "Anabolism",
-			desc = "Организм зараженного тратит энергию на синтез живой массы.\n+ Вы заметно повышаете свою выживаемость и силу\n- Ваша скорость снижается",
+			desc = "The infected's body spends energy synthesizing living mass.\n+ Your survivability and strength rise noticeably\n- Your speed drops",
 			short = "+survivability, +strength, -speed",
 			cost = 0,
 			auto = true,
@@ -59,7 +59,7 @@ MODE.SkillTrees = {
 		},
 		carcinoma = {
 			name = "Carcinoma",
-			desc = "Вирус наращивает опухоли на теле зараженного.\n+ Вы получаете пассивную регенерацию здоровья\n+ Ваше базовое значение здоровья повышается",
+			desc = "The virus grows tumors on the infected's body.\n+ You gain passive health regeneration\n+ Your base health increases",
 			short = "regeneration, +health",
 			cost = 200,
 			branch = "left",
@@ -68,7 +68,7 @@ MODE.SkillTrees = {
 		},
 		strong_legs = {
 			name = "Strong Legs",
-			desc = "Мышцы ног зараженного укрепляются.\n+ Вас невозможно сбить с ног",
+			desc = "The infected's leg muscles grow stronger.\n+ You can't be knocked down",
 			short = "can't be knocked down",
 			cost = 300,
 			branch = "left",
@@ -77,7 +77,7 @@ MODE.SkillTrees = {
 		},
 		mass_impulse = {
 			name = "Mass Impulse",
-			desc = "Зараженный делает продолжительную пробежку вперед.\n+ Нажмите E+M1 чтобы резко пробежать вперед",
+			desc = "The infected makes a long sprint forward.\n+ Press E+M1 to sprint forward sharply",
 			short = "E+M1: charge forward",
 			cost = 600,
 			branch = "left",
@@ -86,7 +86,7 @@ MODE.SkillTrees = {
 		},
 		throw = {
 			name = "Throw",
-			desc = "Зараженный получает возможность с силой бросать предметы.\n+ Хватайте предмет на M2 и, удерживая M2, бросайте его на M1",
+			desc = "The infected gains the ability to throw objects with force.\n+ Grab an object with M2 and, while holding M2, throw it with M1",
 			short = "M2 - grab, M1 - throw",
 			cost = 200,
 			branch = "right",
@@ -95,7 +95,7 @@ MODE.SkillTrees = {
 		},
 		anabolic_boost = {
 			name = "Anabolic Boost",
-			desc = "Вирус троекратно усиливает набор мышечной массы.\n+ Ваши удары сбивают людей с ног, ломают укрепления",
+			desc = "The virus triples the growth of muscle mass.\n+ Your hits knock people down and break fortifications",
 			short = "hits knock down and break",
 			cost = 300,
 			branch = "right",
@@ -104,7 +104,7 @@ MODE.SkillTrees = {
 		},
 		guillotine = {
 			name = "Guillotine",
-			desc = "Зараженный способен на близком расстоянии ампутировать случайную конечность (в том числе и голову).\n+ Нажмите E+M2 впритык к игроку чтобы оторвать его конечность (работает только один раз за жизнь)",
+			desc = "At close range the infected can amputate a random limb (including the head).\n+ Press E+M2 right next to a player to tear off a limb (works only once per life)",
 			short = "E+M2: tear off a limb (once)",
 			cost = 600,
 			branch = "right",
@@ -113,7 +113,7 @@ MODE.SkillTrees = {
 		},
 		fibrodysplasia = {
 			name = "Fibrodysplasia",
-			desc = "Вирус заменяет живую ткань тела на костную массу.\n+ Вы становитесь неуязвимы к пистолетным и ружейным калибрам.\n+ Удары наносят массивный тупой урон.\n- Вы становитесь еще медленнее",
+			desc = "The virus replaces the body's living tissue with bone mass.\n+ You become immune to pistol and rifle calibers.\n+ Your hits deal massive blunt damage.\n- You become even slower",
 			short = "IIIA armor, blunt damage, slower",
 			cost = 1000,
 			requiresAny = {"mass_impulse", "guillotine"},
@@ -124,7 +124,7 @@ MODE.SkillTrees = {
 	zs_agile = {
 		autophagy = {
 			name = "Autophagy",
-			desc = "Организм зараженного перерабатывает его тело для получения энергии.\n+ Вы заметно повышаете свою скорость и стамину\n- Ваша выживаемость снижается",
+			desc = "The infected's organism consumes its own body for energy.\n+ Your speed and stamina rise noticeably\n- Your survivability drops",
 			short = "+speed, +stamina, -survivability",
 			cost = 0,
 			auto = true,
@@ -132,7 +132,7 @@ MODE.SkillTrees = {
 		},
 		dash = {
 			name = "Dash",
-			desc = "Стимуляция вирусом надпочечников позволяет зараженному делать мощные рывки.\n+ Нажмите E+M1 чтобы совершить рывок и сбить противника с ног",
+			desc = "The virus stimulates the adrenal glands, letting the infected make powerful dashes.\n+ Press E+M1 to dash and knock an enemy down",
 			short = "E+M1: dash, knocks down",
 			cost = 200,
 			branch = "left",
@@ -141,7 +141,7 @@ MODE.SkillTrees = {
 		},
 		clinging_claws = {
 			name = "Clinging Claws",
-			desc = "Мышцы рук и кистей зараженного укрепляются.\n+ Теперь вы можете залезать на стены, а также зависать на них.",
+			desc = "The infected's arm and hand muscles grow stronger.\n+ You can now climb walls and hang on them.",
 			short = "climb and cling to walls",
 			cost = 300,
 			branch = "left",
@@ -150,7 +150,7 @@ MODE.SkillTrees = {
 		},
 		lethal_grab = {
 			name = "Lethal Grab",
-			desc = "Зараженный впадает в яростную атаку на упавших игроков.\n+ Схватившись двумя руками за выжившего в регдолле, вы наносите серию беспорядочных режущих ударов до самой смерти.",
+			desc = "The infected goes into a furious attack on downed players.\n+ Grabbing a ragdolled survivor with both hands, you deal a series of frenzied slashing hits until they die.",
 			short = "two-handed grab in ragdoll",
 			cost = 600,
 			branch = "left",
@@ -159,7 +159,7 @@ MODE.SkillTrees = {
 		},
 		hyperdontia = {
 			name = "Hyperdontia",
-			desc = "Вирус видоизменяет структуру челюсти и зубов зараженного.\n+ Нажмите E+M1 чтобы совершить укус, наносящий глубокий проникающий урон.",
+			desc = "The virus reshapes the infected's jaw and teeth.\n+ Press E+M1 to bite, dealing deep penetrating damage.",
 			short = "E+M1: penetrating bite",
 			cost = 200,
 			branch = "right",
@@ -168,7 +168,7 @@ MODE.SkillTrees = {
 		},
 		foot_growths = {
 			name = "Foot Growths",
-			desc = "Вирус развивает хрящевые наросты на стопах зараженного.\n+ Ваше передвижение бесшумно",
+			desc = "The virus grows cartilage on the infected's feet.\n+ Your movement is silent",
 			short = "silent footsteps",
 			cost = 300,
 			branch = "right",
@@ -177,7 +177,7 @@ MODE.SkillTrees = {
 		},
 		autolysis = {
 			name = "Autolysis",
-			desc = "Организм зараженного экстремально истощается, уменьшаясь в размерах в несколько раз.\n+ Вы становитесь в 2 раза меньше, ваша плоть гниет, снижая контрастность в темноте",
+			desc = "The infected's organism becomes extremely exhausted and shrinks several times over.\n+ You become 2 times smaller, and your rotting flesh makes you harder to see in the dark",
 			short = "half size, black flesh",
 			cost = 600,
 			branch = "right",
@@ -186,7 +186,7 @@ MODE.SkillTrees = {
 		},
 		homeostasis = {
 			name = "Higher Homeostasis",
-			desc = "Организм зараженного лишается критически важных органов, все функции работают на максимальную мощность.\n+ Вас ЗНАЧИТЕЛЬНО сложнее убить, смерть мозга считается фатальной\n+ Скорость всех действий значительно увеличена",
+			desc = "The infected's organism loses its vital organs, and every function runs at full power.\n+ You are MUCH harder to kill, only brain death is fatal\n+ All your actions are much faster",
 			short = "no pain or organs, faster",
 			cost = 1000,
 			requiresAny = {"lethal_grab", "autolysis"},
@@ -197,7 +197,7 @@ MODE.SkillTrees = {
 	zs_metaboliser = {
 		nutrient_medium = {
 			name = "Nutrient Medium",
-			desc = "Организм зараженного превращается в биореактор, привлекающий остальных зараженных.\n+ Вы можете заспавнить одного NPC зараженного рядом с вами за жизнь, нажмите CTRL+R\n- Базовое значение здоровья и урона уменьшено.",
+			desc = "The infected's organism turns into a bioreactor that attracts other infected.\n+ Once per life you can spawn one infected NPC next to you, press CTRL+R\n- Base health and damage are reduced.",
 			short = "CTRL+R: NPC zombie, -health, -damage",
 			cost = 0,
 			auto = true,
@@ -205,7 +205,7 @@ MODE.SkillTrees = {
 		},
 		ballistic_growths = {
 			name = "Ballistic Growths",
-			desc = "Вирус выращивает острые наросты под давлением.\n+ Нажав клавишу E+M1, вы можете выстрелить шипом один раз за жизнь",
+			desc = "The virus grows sharp spikes under pressure.\n+ Press E+M1 to shoot a spike once per life",
 			short = "E+M1: spike (once per life)",
 			cost = 200,
 			branch = "left",
@@ -214,7 +214,7 @@ MODE.SkillTrees = {
 		},
 		reflux = {
 			name = "Reflux",
-			desc = "Желудочные соки зараженного превращаются в смесь агрессивных кислот.\n+ Нажав клавишу E+M2, выпустите струю кислоты, наносящую ожоги",
+			desc = "The infected's gastric juices turn into a mix of aggressive acids.\n+ Press E+M2 to release a stream of acid that causes burns",
 			short = "E+M2: acid stream",
 			cost = 300,
 			branch = "left",
@@ -223,7 +223,7 @@ MODE.SkillTrees = {
 		},
 		methane = {
 			name = "Methane Excess",
-			desc = "Зараженный наполняется горючими газами.\n+ После смерти ваше тело взрывается, обливая всех в радиусе 5 метров кислотой",
+			desc = "The infected fills with flammable gases.\n+ After death your body explodes, dousing everyone within 5 meters in acid",
 			short = "acid explosion on death",
 			cost = 600,
 			branch = "left",
@@ -232,7 +232,7 @@ MODE.SkillTrees = {
 		},
 		nest = {
 			name = "Nest",
-			desc = "Зараженный наращивает гнилостную массу для постройки гнезда.\n+ Один раз за раунд, вы можете построить гнездо для спавна вашей команды, нажмите E+M1.",
+			desc = "The infected grows putrid mass to build a nest.\n+ Once per round you can build a nest for your team to spawn at, press E+M1.",
 			short = "E+M1: nest (once per wave)",
 			cost = 200,
 			branch = "right",
@@ -241,7 +241,7 @@ MODE.SkillTrees = {
 		},
 		meat_mycelium = {
 			name = "Meat Mycelium",
-			desc = "Зараженный распространяет споры мясного мицелия, остро реагирующих на окружение и регенерирующих плоть.\n+ Вы можете поставить 1 волдырь за раунд, волдырь размножается до 5 штук и лечит зараженных в 5 метрах, также взрываясь при нахождении выживших в этом радиусе. Нажмите E+M2",
+			desc = "The infected spreads spores of meat mycelium that react sharply to their surroundings and regenerate flesh.\n+ You can place 1 blister per round. The blister multiplies up to 5 and heals infected within 5 meters, and it explodes when survivors are in that radius. Press E+M2",
 			short = "E+M2: blister (once per wave)",
 			cost = 300,
 			branch = "right",
@@ -250,7 +250,7 @@ MODE.SkillTrees = {
 		},
 		bacterial_seeding = {
 			name = "Bacterial Seeding",
-			desc = "Зараженный перекачивает полезные бактерии в других.\n+ Нажмите R на вашего союзника чтобы начать лечить",
+			desc = "The infected pumps beneficial bacteria into others.\n+ Press R on an ally to start healing",
 			short = "R on ally: heal",
 			cost = 600,
 			branch = "right",
@@ -259,7 +259,7 @@ MODE.SkillTrees = {
 		},
 		herd_pheromones = {
 			name = "Herd Pheromones",
-			desc = "Зараженный выделяет соединения, привлекающие других зараженных.\n+ Вы можете заспавнить трех быстрых зомби за одну жизнь.\n+ Удар по игроку показывает его местоположение.",
+			desc = "The infected secretes compounds that attract other infected.\n+ You can spawn three fast zombies per life.\n+ Hitting a player reveals their location.",
 			short = "CTRL+R: 3 fast zombies, mark",
 			cost = 1000,
 			requiresAny = {"methane", "bacterial_seeding"},

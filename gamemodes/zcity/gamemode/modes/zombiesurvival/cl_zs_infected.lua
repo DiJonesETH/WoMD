@@ -223,7 +223,7 @@ local function BuildSkillGrid(parent, class, info)
 			surface.SetDrawColor(main)
 			surface.DrawOutlinedRect(0, 0, nw, nh, (state == "owned" or (state == "available" and self:IsHovered())) and 3 or 1)
 
-			-- название и оригинальное описание навыка
+			-- название и описание навыка
 			draw.SimpleText(skill.name or id, "ZS_SkillName", nw * 0.5, 4, state == "locked" and colGray or col, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
 
 			surface.SetFont("ZS_SkillName")
