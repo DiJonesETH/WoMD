@@ -374,6 +374,7 @@ local boxCable = Vector(3.2, 3.5, -4.5)
 -- положение горелки относительно кисти (ValveBiped.Bip01_R_Hand)
 SWEP.TorchPos = Vector(3.5, 1.4, -2.6)
 SWEP.TorchAng = Angle(0, 0, 180)
+SWEP.TorchShiftLeft = 3 -- дополнительный сдвиг горелки влево относительно взгляда игрока
 
 local function MakePart(part)
 	local ent = ClientsideModel("models/hunter/blocks/cube025x025x025.mdl", RENDERGROUP_OPAQUE)
@@ -549,6 +550,7 @@ function SWEP:DrawWorldModel2()
 	if not handMatrix or not spineMatrix then return end
 
 	local torchPos, torchAng = LocalToWorld(self.TorchPos, self.TorchAng, handMatrix:GetTranslation(), handMatrix:GetAngles())
+	torchPos = torchPos - owner:EyeAngles():Right() * self.TorchShiftLeft
 	torchPos, torchAng = self:AnimateTorch(torchPos, torchAng)
 
 	local yaw = renderGuy:IsPlayer() and owner:GetAngles().y or spineMatrix:GetAngles().y
