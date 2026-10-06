@@ -1,8 +1,9 @@
 local MODE = MODE
 
 -- Очки выживших (SURVIVOR POINTS): тратятся в магазинах ящиков снабжения (lua/entities/zs_supply_box.lua).
--- 1 очко в секунду живым выжившим и SurvivorKillPoints за убийство зараженного.
+-- SurvivorPassivePoints очков раз в SurvivorPassiveInterval секунд живым выжившим и SurvivorKillPoints за убийство зараженного.
 MODE.SurvivorPassivePoints = 1
+MODE.SurvivorPassiveInterval = 2
 MODE.SurvivorKillPoints = 50
 MODE.SurvivorKillCreditTime = 15 -- секунд: урон выжившего по зараженному засчитывает убийство
 
@@ -21,7 +22,7 @@ function MODE.ResetSurvivorPoints()
 	end
 end
 
-timer.Create("ZS_SurvivorPassivePoints", 1, 0, function()
+timer.Create("ZS_SurvivorPassivePoints", MODE.SurvivorPassiveInterval, 0, function()
 	local mode = CurrentRound()
 	if zb.ROUND_STATE ~= 1 or not mode or mode.name ~= "zs" or not mode.saved.StartTime then return end
 

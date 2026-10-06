@@ -26,6 +26,14 @@ hook.Add("Move", "ZS_BruiserMassImpulse", function(ply, mv)
 	mv:SetVelocity(Vector(forward.x * IMPULSE_SPEED, forward.y * IMPULSE_SPEED, vel.z))
 end)
 
+-- гильотина: пока зараженный держит выжившего за конечность, он стоит на месте
+hook.Add("Move", "ZS_BruiserGuillotineHold", function(ply, mv)
+	if ply:GetNWFloat("ZS_GuillotineUntil", 0) < CurTime() or not ply:Alive() then return end
+
+	local vel = mv:GetVelocity()
+	mv:SetVelocity(Vector(0, 0, math.min(vel.z, 0)))
+end)
+
 if CLIENT then return end
 
 -- модификаторы от навыков; вызывается при покупке и при каждом спавне зараженного
@@ -372,7 +380,7 @@ local function ImpulseThink(ply)
 end
 
 -- Травматическая пощечина: удар отбрасывает выжившего в сторону и роняет его в регдолл
-local SLAP_RANGE, SLAP_COOLDOWN, SLAP_FORCE = 70, 6, 650
+local SLAP_RANGE, SLAP_COOLDOWN, SLAP_FORCE = 70, 10, 650
 
 local function TraumaticSlap(ply)
 	if (ply.zs_NextSlap or 0) > CurTime() then return end
@@ -426,8 +434,57 @@ local function TraumaticSlap(ply)
 	ply:AnimRestartGesture(GESTURE_SLOT_ATTACK_AND_RELOAD, ACT_GMOD_GESTURE_RANGE_ZOMBIE, true)
 end
 
+-- Гильотина: зараженный хватает выжившего за конечность, которую собирается оторвать, поднимает его
+-- регдолл перед собой и через GUILLOTINE_HOLD секунд отрывает ее (один раз за жизнь)
+local GUILLOTINE_HOLD, GUILLOTINE_BREAK_DIST = 2, 150
+local limbBones = {
+	lleg = "ValveBiped.Bip01_L_Foot",
+	rleg = "ValveBiped.Bip01_R_Foot",
+	larm = "ValveBiped.Bip01_L_Hand",
+	rarm = "ValveBiped.Bip01_R_Hand",
+	head = "ValveBiped.Bip01_Head1",
+}
+
+local guillotineHolds = {}
+
+local function LimbPhys(victim, limb)
+	local ragdoll = victim.FakeRagdoll
+	if not IsValid(ragdoll) then return end
+
+	local bone = ragdoll:LookupBone(limbBones[limb])
+	if not bone then return end
+
+	local phys = ragdoll:GetPhysicsObjectNum(ragdoll:TranslateBoneToPhysBone(bone))
+	return IsValid(phys) and phys or nil
+end
+
+local function ReleaseGuillotine(ply)
+	local hold = guillotineHolds[ply]
+	guillotineHolds[ply] = nil
+
+	if IsValid(ply) then ply:SetNWFloat("ZS_GuillotineUntil", 0) end
+	if hold and IsValid(hold.victim) then hold.victim.zs_GuillotineHeld = nil end
+end
+
+local function TearLimb(ply, hold)
+	local victim, limb = hold.victim, hold.limb
+	local org = victim.organism
+	if not org or org[limb .. "amputated"] then return end
+
+	ply.zs_GuillotineUsed = true
+
+	if limb == "head" then
+		hg.ExplodeHead(hg.GetCurrentCharacter(victim))
+	else
+		hg.organism.AmputateLimb(org, limb)
+	end
+
+	ply:EmitSound("npc/zombie_poison/pz_throw" .. math.random(2, 3) .. ".wav", 85)
+	ply:EmitSound("physics/flesh/flesh_bloody_break.wav", 80, math.random(90, 110))
+end
+
 local function Guillotine(ply)
-	if ply.zs_GuillotineUsed then return end
+	if ply.zs_GuillotineUsed or guillotineHolds[ply] or (ply.zs_NextGuillotine or 0) > CurTime() then return end
 
 	local eye = ply:EyePos()
 
@@ -444,7 +501,7 @@ local function Guillotine(ply)
 
 	local ent = tr.Entity
 	local victim = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
-	if not IsLivingSurvivor(victim) or not victim.organism then return end
+	if not IsLivingSurvivor(victim) or not victim.organism or victim.zs_GuillotineHeld then return end
 
 	local org = victim.organism
 	local available = {}
@@ -455,19 +512,57 @@ local function Guillotine(ply)
 
 	if #available == 0 then return end
 
-	ply.zs_GuillotineUsed = true
+	if not IsValid(victim.FakeRagdoll) then hg.Fake(victim) end
 
-	local limb = available[math.random(#available)]
+	guillotineHolds[ply] = {
+		victim = victim,
+		limb = available[math.random(#available)],
+		tearAt = CurTime() + GUILLOTINE_HOLD,
+	}
 
-	if limb == "head" then
-		hg.ExplodeHead(hg.GetCurrentCharacter(victim))
-	else
-		hg.organism.AmputateLimb(org, limb)
-	end
+	victim.zs_GuillotineHeld = ply
+	ply:SetNWFloat("ZS_GuillotineUntil", CurTime() + GUILLOTINE_HOLD)
 
-	ply:EmitSound("npc/zombie_poison/pz_throw" .. math.random(2, 3) .. ".wav", 85)
-	ply:EmitSound("physics/flesh/flesh_bloody_break.wav", 80, math.random(90, 110))
+	ply:EmitSound("npc/zombie_poison/pz_warn" .. math.random(2) .. ".wav", 85)
+	victim:EmitSound("physics/body/body_medium_impact_soft" .. math.random(7) .. ".wav", 75)
 end
+
+-- удержание: конечность тянется к рукам зараженного, тело повисает на ней
+hook.Add("Think", "ZS_BruiserGuillotineHold", function()
+	for ply, hold in pairs(guillotineHolds) do
+		local victim = hold.victim
+
+		if not IsLivingZombie(ply) or IsValid(ply.FakeRagdoll) or not IsLivingSurvivor(victim) then
+			ReleaseGuillotine(ply)
+			continue
+		end
+
+		local phys = LimbPhys(victim, hold.limb)
+		local target = ply:EyePos() + ply:GetAimVector() * 30 + Vector(0, 0, 6)
+
+		if phys then
+			if phys:GetPos():Distance(target) > GUILLOTINE_BREAK_DIST then
+				ReleaseGuillotine(ply)
+				continue
+			end
+
+			phys:Wake()
+			phys:SetVelocity((target - phys:GetPos()) * 12)
+		end
+
+		if CurTime() >= hold.tearAt then
+			if phys then TearLimb(ply, hold) end
+
+			ReleaseGuillotine(ply)
+			ply.zs_NextGuillotine = CurTime() + 2
+		end
+	end
+end)
+
+-- выживший не может встать, пока его держат
+hook.Add("Should Fake Up", "ZS_BruiserGuillotineHold", function(ply)
+	if IsValid(ply.zs_GuillotineHeld) then return false end
+end)
 
 hook.Add("KeyPress", "ZS_BruiserAbilities", function(ply, key)
 	if not ply:KeyDown(IN_USE) then return end
@@ -484,7 +579,9 @@ end)
 
 -- гильотина работает один раз за жизнь
 hook.Add("PlayerSpawn", "ZS_BruiserGuillotineReset", function(ply)
+	ReleaseGuillotine(ply)
 	ply.zs_GuillotineUsed = nil
+	ply.zs_GuillotineHeld = nil
 	ply:SetNWFloat("ZS_ImpulseUntil", 0)
 end)
 

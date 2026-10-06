@@ -104,8 +104,8 @@ MODE.SkillTrees = {
 		},
 		guillotine = {
 			name = "Guillotine",
-			desc = "At close range the infected can amputate a random limb (including the head).\n+ Press E+M2 right next to a player to tear off a limb (works only once per life)",
-			short = "E+M2: tear off a limb (once)",
+			desc = "At close range the infected can amputate a random limb (including the head).\n+ Press E+M2 right next to a player to grab them by a limb, lift them up and tear it off after 2 seconds (works only once per life)",
+			short = "E+M2: grab and tear off a limb (once)",
 			cost = 600,
 			branch = "right",
 			requires = {"anabolic_boost"},

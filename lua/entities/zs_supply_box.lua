@@ -72,10 +72,25 @@ if SERVER then
 
 		ammo_held = function(ply, item, price)
 			local wep = ply:GetActiveWeapon()
-			if not price then return nil, "Hold a firearm in your hands" end
+			local _, amount = ZS_HeldAmmoPrice(wep)
+			if not price or not amount then return nil, "Hold a firearm in your hands" end
 
-			ply:GiveAmmo(wep:GetMaxClip1() * 2, wep:GetPrimaryAmmoType(), true)
+			ply:GiveAmmo(amount, wep:GetPrimaryAmmoType(), true)
 			return price
+		end,
+
+		armor = function(ply, item)
+			for _, worn in pairs(ply.armors or {}) do
+				if worn == item.armor then return nil, "You already wear this" end
+			end
+
+			hg.AddArmor(ply, item.armor)
+
+			for _, worn in pairs(ply.armors or {}) do
+				if worn == item.armor then return item.price end
+			end
+
+			return nil, "You can't wear this right now"
 		end,
 
 		ammo = function(ply, item)
@@ -93,7 +108,7 @@ if SERVER then
 	}
 
 	local function ItemPrice(ply, item)
-		if item.kind == "ammo_held" then return ZS_HeldAmmoPrice(ply:GetActiveWeapon()) end
+		if item.kind == "ammo_held" then return (ZS_HeldAmmoPrice(ply:GetActiveWeapon())) end
 		return item.price
 	end
 
@@ -186,6 +201,7 @@ local colGray = Color(170, 170, 170)
 local iconCache = {}
 local function ItemIcon(item)
 	if item.icon then return item.icon end
+	if item.armor then return hg.armorIcons and hg.armorIcons[item.armor] or "icon16/shield.png" end
 	if iconCache[item.class] then return iconCache[item.class] end
 
 	local stored = weapons.GetStored(item.class)
@@ -198,13 +214,14 @@ end
 
 local function ItemName(item)
 	if item.name then return item.name end
+	if item.armor then return hg.armorNames and hg.armorNames[item.armor] or item.armor end
 
 	local stored = weapons.GetStored(item.class)
 	return stored and stored.PrintName and language.GetPhrase(stored.PrintName) or item.class
 end
 
 local function ItemPrice(item)
-	if item.kind == "ammo_held" then return ZS_HeldAmmoPrice(LocalPlayer():GetActiveWeapon()) end
+	if item.kind == "ammo_held" then return (ZS_HeldAmmoPrice(LocalPlayer():GetActiveWeapon())) end
 	return item.price
 end
 
@@ -242,7 +259,7 @@ local function OpenShop(box)
 	local cats = vgui.Create("DPanel", frame)
 	cats:Dock(LEFT)
 	cats:DockMargin(6, 40, 6, 6)
-	cats:SetWide(150)
+	cats:SetWide(170)
 	cats.Paint = nil
 
 	local scroll = vgui.Create("DScrollPanel", frame)
@@ -298,7 +315,7 @@ local function OpenShop(box)
 		local btn = vgui.Create("DButton", cats)
 		btn:Dock(TOP)
 		btn:DockMargin(0, 0, 0, 6)
-		btn:SetTall(40)
+		btn:SetTall(34)
 		btn:SetText("")
 
 		function btn:Paint(w, h)

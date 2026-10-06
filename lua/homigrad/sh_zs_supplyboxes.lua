@@ -79,36 +79,64 @@ function ZS_CanPlaceSupplyBox(boxType, pos)
 	return true
 end
 
--- Магазины ящиков снабжения. Цены в очках выжившего: пассивно 1 очко в секунду (~240 за волну с подготовкой),
--- 50 очков за убийство зараженного. Пистолет - примерно 2 минуты, лучшая винтовка - около 4 волн.
--- kind: weapon (по умолчанию) | ammo_held (2 магазина к оружию в руках) | ammo (amount патронов типа ammo) | electrodes
+-- Магазины ящиков снабжения. Цены в очках выжившего: пассивно 1 очко в 2 секунды (~120 за волну с подготовкой),
+-- 50 очков за убийство зараженного. Вкладки оружия повторяют категории Q-меню Z-City (SWEP.Category).
+-- kind: weapon (по умолчанию) | armor | ammo_held (патроны к оружию в руках) | ammo (amount патронов типа ammo) | electrodes
+-- ammoPrice/ammoShells у категории: цена патронов к оружию из нее; ammoShells - сколько патронов дается вместо 2 магазинов
 ZS_SHOPS = {
 	arsenal = {
 		{name = "Pistols", ammoPrice = 30, items = {
-			{class = "weapon_makarov", price = 100},
-			{class = "weapon_glock17", price = 120},
-			{class = "weapon_m9beretta", price = 130},
-			{class = "weapon_hk_usp", price = 140},
-			{class = "weapon_px4beretta", price = 140},
-			{class = "weapon_cz75", price = 150},
-			{class = "weapon_revolver2", price = 250},
-			{class = "weapon_deagle", price = 300},
+			{class = "weapon_makarov", price = 160},
+			{class = "weapon_glock17", price = 180},
+			{class = "weapon_m9beretta", price = 190},
+			{class = "weapon_hk_usp", price = 210},
+			{class = "weapon_px4beretta", price = 210},
+			{class = "weapon_cz75", price = 220},
+			{class = "weapon_revolver2", price = 350},
+			{class = "weapon_deagle", price = 450},
+			{class = "weapon_draco", price = 700},
 		}},
-		{name = "Shotguns", ammoPrice = 50, items = {
-			{class = "weapon_doublebarrel_short", price = 250},
-			{class = "weapon_doublebarrel", price = 280},
-			{class = "weapon_remington870", price = 400},
-			{class = "weapon_xm1014", price = 650},
+		{name = "Machine-Pistols", ammoPrice = 60, items = {
+			{class = "weapon_skorpion", price = 450},
+			{class = "weapon_uzi", price = 500},
+			{class = "weapon_mac11", price = 500},
+			{class = "weapon_tmp", price = 600},
+			{class = "weapon_mp5", price = 650},
+			{class = "weapon_mp7", price = 750},
+			{class = "weapon_vector", price = 850},
+			{class = "weapon_p90", price = 900},
 		}},
-		{name = "Rifles", ammoPrice = 70, items = {
-			{class = "weapon_mp5", price = 450},
-			{class = "weapon_kar98", price = 450},
-			{class = "weapon_mp7", price = 500},
-			{class = "weapon_sks", price = 500},
-			{class = "weapon_draco", price = 600},
-			{class = "weapon_ar15", price = 700},
-			{class = "weapon_akm", price = 750},
-			{class = "weapon_sr25", price = 900},
+		{name = "Shotguns", ammoPrice = 50, ammoShells = 7, items = {
+			{class = "weapon_doublebarrel_short", price = 350},
+			{class = "weapon_doublebarrel", price = 400},
+			{class = "weapon_toz106", price = 450},
+			{class = "weapon_remington870", price = 600},
+			{class = "weapon_m590a1", price = 650},
+			{class = "weapon_spas12", price = 800},
+			{class = "weapon_xm1014", price = 950},
+			{class = "weapon_saiga12", price = 1000},
+		}},
+		{name = "Carbines", ammoPrice = 70, items = {
+			{class = "weapon_ruger", price = 550},
+			{class = "weapon_mini14", price = 750},
+			{class = "weapon_vpo136", price = 900},
+			{class = "weapon_ar15", price = 1000},
+		}},
+		{name = "Assault Rifles", ammoPrice = 80, items = {
+			{class = "weapon_ak74u", price = 1000},
+			{class = "weapon_akm", price = 1100},
+			{class = "weapon_ak74", price = 1100},
+			{class = "weapon_m16a2", price = 1100},
+			{class = "weapon_m4a1", price = 1250},
+			{class = "weapon_hk416", price = 1350},
+		}},
+		{name = "Sniper Rifles", ammoPrice = 70, items = {
+			{class = "weapon_winchester", price = 550},
+			{class = "weapon_mosin", price = 600},
+			{class = "weapon_kar98", price = 650},
+			{class = "weapon_sks", price = 700},
+			{class = "weapon_svd", price = 1200},
+			{class = "weapon_sr25", price = 1300},
 		}},
 		{name = "Melee", items = {
 			{class = "weapon_pocketknife", price = 40},
@@ -122,8 +150,18 @@ ZS_SHOPS = {
 			{class = "weapon_hg_axe", price = 150},
 			{class = "weapon_hg_sledgehammer", price = 180},
 		}},
+		{name = "Armor", items = {
+			{id = "helmet2", kind = "armor", armor = "helmet2", price = 120},
+			{id = "helmet3", kind = "armor", armor = "helmet3", price = 250},
+			{id = "helmet1", kind = "armor", armor = "helmet1", price = 350},
+			{id = "helmet5", kind = "armor", armor = "helmet5", price = 400},
+			{id = "vest6", kind = "armor", armor = "vest6", price = 250},
+			{id = "vest3", kind = "armor", armor = "vest3", price = 400},
+			{id = "vest4", kind = "armor", armor = "vest4", price = 550},
+			{id = "vest1", kind = "armor", armor = "vest1", price = 750},
+		}},
 		{name = "Ammo", items = {
-			{id = "ammo_held", kind = "ammo_held", name = "2 magazines for the weapon in your hands", icon = "icon16/box.png", priceText = "30-70"},
+			{id = "ammo_held", kind = "ammo_held", name = "Ammo for the weapon in your hands", icon = "icon16/box.png", priceText = "30-80"},
 		}},
 	},
 	medical = {
@@ -171,19 +209,22 @@ function ZS_FindShopItem(boxType, id)
 	end
 end
 
--- цена 2 магазинов к оружию в руках: по категории этого оружия в арсенале
+-- патроны к оружию в руках: цена и количество по категории этого оружия в арсенале
+-- (2 магазина, у дробовиков - ammoShells патронов); возвращает price, amount
 function ZS_HeldAmmoPrice(wep)
-	if not IsValid(wep) then return end
+	if not IsValid(wep) or wep:GetPrimaryAmmoType() < 0 or wep:GetMaxClip1() <= 0 then return end
+
+	local amount = wep:GetMaxClip1() * 2
 
 	for _, cat in ipairs(ZS_SHOPS.arsenal) do
 		if cat.ammoPrice then
 			for _, item in ipairs(cat.items) do
-				if item.class == wep:GetClass() then return cat.ammoPrice end
+				if item.class == wep:GetClass() then return cat.ammoPrice, cat.ammoShells or amount end
 			end
 		end
 	end
 
-	if wep:GetPrimaryAmmoType() >= 0 and wep:GetMaxClip1() > 0 then return 60 end
+	return 60, amount
 end
 
 function ZS_GetSurvivorPoints(ply)
