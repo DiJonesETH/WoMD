@@ -207,8 +207,11 @@ timer.Create("ZS_PassivePoints", 1, 0, function()
 	end
 end)
 
--- регдоллы погибших игроков можно съесть один раз
+-- регдоллы погибших выживших можно съесть один раз (трупы зараженных несъедобны,
+-- иначе зараженный мог съесть собственный труп и получить очки)
 function Infected.MarkCorpse(ply)
+	if ply:Team() ~= TEAM_SURVIVORS then return end
+
 	timer.Simple(0.1, function()
 		if not IsValid(ply) then return end
 
@@ -216,12 +219,13 @@ function Infected.MarkCorpse(ply)
 		if not IsValid(ragdoll) or ragdoll.zs_Eaten then return end
 
 		ragdoll.zs_Corpse = true
+		ragdoll.zs_CorpseOwner = ply
 		ragdoll:SetNWBool("ZS_Corpse", true)
 	end)
 end
 
-local function IsEdibleCorpse(ent)
-	return IsValid(ent) and ent:GetClass() == "prop_ragdoll" and ent.zs_Corpse and not ent.zs_Eaten
+local function IsEdibleCorpse(ent, eater)
+	return IsValid(ent) and ent:GetClass() == "prop_ragdoll" and ent.zs_Corpse and not ent.zs_Eaten and ent.zs_CorpseOwner ~= eater
 end
 
 local function CorpseDistance(ply, ragdoll)
@@ -250,14 +254,14 @@ local function FindCorpse(mode, ply)
 		mask = MASK_SHOT,
 	})
 
-	if IsEdibleCorpse(tr.Entity) then
+	if IsEdibleCorpse(tr.Entity, ply) then
 		return tr.Entity
 	end
 
 	local best, bestDot
 
 	for _, ent in ipairs(ents.FindInSphere(eye, mode.EatDistance)) do
-		if not IsEdibleCorpse(ent) then continue end
+		if not IsEdibleCorpse(ent, ply) then continue end
 
 		local dot = aim:Dot((ent:GetPos() - eye):GetNormalized())
 
@@ -348,7 +352,7 @@ local function EatThink(mode, ply)
 	end
 
 	if target then
-		if not IsEdibleCorpse(target) or target.zs_EatenBy ~= ply or CorpseDistance(ply, target) > mode.EatDistance + 20 then
+		if not IsEdibleCorpse(target, ply) or target.zs_EatenBy ~= ply or CorpseDistance(ply, target) > mode.EatDistance + 20 then
 			StopEating(ply)
 			return
 		end

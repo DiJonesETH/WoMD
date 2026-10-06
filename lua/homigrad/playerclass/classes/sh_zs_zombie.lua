@@ -207,6 +207,11 @@ hook.Add("HG_CanThoughts", "ZS_ZombieThoughts", function(ply)
 	end
 end)
 
+-- зараженные не теряют сознание (lua/homigrad/organism/tier_1/sv_organism.lua)
+hook.Add("HG_CanBeUnconscious", "ZS_ZombieNoUnconscious", function(ply)
+	if ZS_IsZombie(ply) then return false end
+end)
+
 hook.Add("PlayerCanPickupWeapon", "ZS_ZombiePickup", function(ply, ent)
 	if ZS_IsZombie(ply) and ent:GetClass() ~= "weapon_hands_sh" then
 		return false

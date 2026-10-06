@@ -1,7 +1,7 @@
 local MODE = MODE
 
 -- Аирдроп выживших: со второй волны в каждую подготовку с неба падает ящик (lua/entities/zs_airdrop.lua).
--- Каждый выживший получает из него свой лут: 3 предмета, первый с шансом 20% - специальный (ящик снабжения).
+-- Каждый выживший получает из него свой лут: 3 предмета, первый с шансом 20% - специальный (ящик снабжения или трупосжигатель).
 
 util.AddNetworkString("zs_airdrop")
 
@@ -53,7 +53,7 @@ local lootCategories = {
 	},
 }
 
-local specialItems = {"weapon_zs_box_arsenal", "weapon_zs_box_medical", "weapon_zs_box_tech"}
+local specialItems = {"weapon_zs_box_arsenal", "weapon_zs_box_medical", "weapon_zs_box_tech", "weapon_zs_box_incinerator"}
 
 -- прогрессия 0..1: первый аирдроп (волна AirdropFromWave) -> последняя волна режима
 local function GetProgress()

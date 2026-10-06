@@ -78,12 +78,14 @@ if SERVER then
 		if not pos then return end
 
 		if not ZS_CanPlaceSupplyBox(wep.BoxType, pos) then
-			if ply.Notify then ply:Notify("A box of this type is already within 5 meters", 0, "zs_supplybox", 3) end
+			if ply.Notify then ply:Notify("A structure of this type is already within 5 meters", 0, "zs_supplybox", 3) end
 			return
 		end
 
-		local box = ents.Create("zs_supply_box")
-		box:SetBoxType(wep.BoxType)
+		local info = ZS_SUPPLY_BOXES[wep.BoxType]
+		local box = ents.Create(info and info.entity or "zs_supply_box")
+		if not IsValid(box) then return end
+		if box.SetBoxType then box:SetBoxType(wep.BoxType) end
 		box:SetAngles(ang)
 		box:SetPos(pos)
 		box:Spawn()

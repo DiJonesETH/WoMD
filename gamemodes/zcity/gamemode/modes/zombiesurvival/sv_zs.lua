@@ -240,6 +240,8 @@ end
 function MODE:Intermission()
 	game.CleanUpMap()
 
+	self.ResetSurvivorPoints()
+
 	local _, CROUND = CurrentRound()
 
 	if not self.Types[CROUND] then
@@ -405,7 +407,7 @@ function MODE:CanSpawn()
 	return false
 end
 
-function MODE:PlayerDeath(ply)
+function MODE:PlayerDeath(ply, inflictor, attacker)
 	if zb.ROUND_STATE ~= 1 then return end
 
 	ply.zs_NextSpawn = CurTime() + self.ZombieRespawnDelay
@@ -426,6 +428,7 @@ function MODE:PlayerDeath(ply)
 
 	if ply:Team() == TEAM_INFECTED then
 		self:RemoveZombieCorpse(ply)
+		self:RewardZombieKill(ply, attacker)
 	elseif ply:Team() == TEAM_SURVIVORS then
 		ply:SetTeam(TEAM_INFECTED)
 

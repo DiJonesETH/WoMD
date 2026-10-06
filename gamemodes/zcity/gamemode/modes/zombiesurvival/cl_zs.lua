@@ -120,6 +120,8 @@ local function GetAimedNest()
 	return best
 end
 
+local colSurvivorPoints = Color(120, 220, 120)
+
 local function FormatTime(seconds)
 	seconds = math.max(math.ceil(seconds), 0)
 
@@ -148,6 +150,13 @@ local function DrawRoundInfo()
 	end
 
 	draw.SimpleText(status, "ZB_InterfaceMedium", x + ScreenScale(5), y + ScreenScale(17), color, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+
+	-- очки выжившего (магазины ящиков снабжения)
+	if lply:Alive() and lply:Team() == TEAM_SURVIVORS then
+		local py = y + h + ScreenScale(3)
+		draw.RoundedBox(6, x, py, w, ScreenScale(14), colBG)
+		draw.SimpleText("SURVIVOR POINTS: " .. lply:GetNWInt("ZS_SPoints", 0), "ZB_InterfaceMedium", x + ScreenScale(5), py + ScreenScale(7), colSurvivorPoints, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+	end
 end
 
 local function DrawRespawnHint()

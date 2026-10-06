@@ -457,6 +457,12 @@ hook.Add("Org Think", "Main", function(owner, org, timeValue)
 		org.uncon_timer = 0
 	end
 
+	-- классы, которые не теряют сознание (например, зараженные Zombie Survival)
+	if isPly and hook.Run("HG_CanBeUnconscious", owner, org) == false then
+		org.needotrub = false
+		org.otrub = false
+	end
+
 	local just_went_uncon = not org.otrub and org.needotrub
 	local just_woke_up = not org.needotrub and org.otrub and (org.uncon_timer or 0) > 6
 	if isPly and just_went_uncon then hook.Run("HG_OnOtrub", owner); hook.Run("PlayerDropWeapon", owner) end
