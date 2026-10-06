@@ -71,16 +71,23 @@ if SERVER then
 			return true
 		end,
 
-		-- скотч, молоток (если его нет) и 32 гвоздя
+		-- скотч, молоток (если его нет), 32 гвоздя, сварочный аппарат (если его нет) и электроды
 		tech = function(ply)
 			GiveItem(ply, "weapon_ducttape")
 
-			if not ply:HasWeapon("weapon_zs_hammer") then
-				ply:Give("weapon_zs_hammer")
+			if not ply:HasWeapon("weapon_hammer") then
+				ply:Give("weapon_hammer")
 			end
 
 			ply:GiveAmmo(32, "Nails")
-			Notify(ply, "Received duct tape, a hammer and nails")
+
+			-- сварочный аппарат (если его нет) и электроды
+			if not ply:HasWeapon("weapon_zs_arcwelder") then
+				ply:Give("weapon_zs_arcwelder")
+			end
+
+			ZS_BARRICADE.GiveElectrodes(ply, ZS_BARRICADE.WelderElectrodes)
+			Notify(ply, "Received duct tape, a hammer, nails and welding electrodes")
 
 			return true
 		end,

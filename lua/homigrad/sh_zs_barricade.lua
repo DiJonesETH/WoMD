@@ -1,7 +1,8 @@
 -- Баррикады режима Zombie Survival (по образцу JetBoom/zombiesurvival):
 -- - у каждого пропа есть здоровье (ZSPropHealth), поврежденный проп краснеет и ломается;
--- - молоток weapon_zs_hammer прибивает пропы гвоздями zs_nail, у прибитого пропа отдельное здоровье баррикады,
---   его бьют только зараженные, а выжившие чинят молотком (запас починки ограничен);
+-- - сварочный аппарат weapon_zs_arcwelder приваривает пропы точками сварки zs_weld (механика гвоздей JetBoom),
+--   у приваренного пропа отдельное здоровье баррикады, его бьют только зараженные, а выжившие чинят сваркой
+--   (запас починки ограничен); сварка тратит электроды;
 -- - выживший, удерживая Z (+zoom), проходит сквозь прибитые пропы.
 
 ZS_BARRICADE = ZS_BARRICADE or {}
@@ -13,11 +14,14 @@ ZSB.HealthMassFactor = 3 * 0.85
 ZSB.HealthVolumeFactor = 4 * 0.85
 ZSB.RepairCapacity = 1.25 -- запас починки = макс. здоровье * RepairCapacity
 ZSB.ExtraHealthPerNail = 75 -- бонус за 2-й, 3-й и 4-й гвоздь
-ZSB.MaxNailsPerProp = 8
-ZSB.MaxNailsPerPlayer = 4 -- гвоздей одного игрока в одном пропе
+ZSB.MaxNailsPerProp = 8 -- "гвозди" здесь - точки сварки
+ZSB.MaxNailsPerPlayer = 4 -- точек сварки одного игрока в одном пропе
 ZSB.MaxPropsInBarricade = 8
 ZSB.RepairPerHit = 10
-ZSB.HammerNails = 16 -- гвоздей в комплекте с молотком
+ZSB.WeldTime = 3 -- секунд на одну точку сварки
+ZSB.WelderElectrodes = 10 -- электродов в комплекте со сварочным аппаратом
+ZSB.MaxElectrodes = 40
+ZSB.RepairInterval = 0.5 -- починка сваркой: RepairPerHit здоровья раз в RepairInterval секунд
 ZSB.PropHealthMax = 2500
 
 local TEAM_SURVIVORS = 0
@@ -40,6 +44,11 @@ end
 
 function ZSB.GetMaxRepairs(ent)
 	return ZSB.GetMaxHealth(ent) * ZSB.RepairCapacity
+end
+
+-- электроды сварочного аппарата
+function ZSB.GetElectrodes(ply)
+	return ply:GetNW2Int("ZS_Electrodes", 0)
 end
 
 function ZSB.IsGhosting(ply)
@@ -79,6 +88,14 @@ if SERVER then
 		return zb and zb.ROUND_STATE == 1 and mode and mode.name == "zs"
 	end
 	ZSB.Active = Active
+
+	function ZSB.SetElectrodes(ply, n)
+		ply:SetNW2Int("ZS_Electrodes", math.Clamp(math.floor(n), 0, ZSB.MaxElectrodes))
+	end
+
+	function ZSB.GiveElectrodes(ply, n)
+		ZSB.SetElectrodes(ply, ZSB.GetElectrodes(ply) + n)
+	end
 
 	function ZSB.SetHealth(ent, v) ent:SetNW2Float("ZSB_HP", v) end
 	function ZSB.SetMaxHealth(ent, v) ent:SetNW2Float("ZSB_MaxHP", v) end
@@ -183,7 +200,7 @@ if SERVER then
 		local cons = nail.ZSConstraint
 		local others = 0
 
-		for _, other in ipairs(ents.FindByClass("zs_nail")) do
+		for _, other in ipairs(ents.FindByClass("zs_weld")) do
 			if other ~= nail and not other.ZSRemoving and other.ZSConstraint == cons then
 				others = others + 1
 			end
@@ -352,25 +369,13 @@ if SERVER then
 		end
 	end)
 
-	-- в режиме ванильный молоток Z-City заменяется молотком плотника (например, найденный в луте)
-	hook.Add("WeaponEquip", "ZS_HammerSwap", function(wep, ply)
-		if not Active() or wep:GetClass() ~= "weapon_hammer" then return end
-
-		timer.Simple(0, function()
-			if not IsValid(ply) or not IsValid(wep) or wep:GetOwner() ~= ply then return end
-
-			ply:StripWeapon("weapon_hammer")
-
-			if ply:HasWeapon("weapon_zs_hammer") then
-				ply:GiveAmmo(ZSB.HammerNails, "Nails", true)
-			else
-				ply:Give("weapon_zs_hammer")
-			end
-		end)
-	end)
-
 	hook.Add("PlayerSpawn", "ZS_BarricadeGhosting", function(ply)
 		ZSB.SetGhosting(ply, false)
+	end)
+
+	-- электроды пропадают со смертью
+	hook.Add("PostPlayerDeath", "ZS_Electrodes", function(ply)
+		ZSB.SetElectrodes(ply, 0)
 	end)
 else
 	local colBack = Color(0, 0, 0, 180)

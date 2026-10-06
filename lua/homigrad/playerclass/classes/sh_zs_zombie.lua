@@ -88,6 +88,13 @@ end
 
 local clr_zombie = Color(90, 20, 20)
 
+-- приставки к никам зараженных: "<приставка> <ник игрока>"
+ZS_NAME_PREFIXES = {
+	zs_bruiser = {"Tanky", "Meaty", "Massive", "Colossal", "Armored"},
+	zs_agile = {"Rapid", "Ambusher", "Volatile", "Carnivore"},
+	zs_metaboliser = {"Bacterial", "Fungi", "Rotten", "Poisoned"},
+}
+
 for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 	local CLASS = player.RegClass(className)
 
@@ -99,7 +106,8 @@ for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 	function CLASS.On(self)
 		if CLIENT then return end
 
-		self:SetNWString("PlayerName", info.name)
+		local prefixes = ZS_NAME_PREFIXES[className]
+		self:SetNWString("PlayerName", prefixes and (prefixes[math.random(#prefixes)] .. " " .. self:Nick()) or info.name)
 		self:SetNetVar("Accessories", "")
 
 		self:SetModel(ZS_BASE_MODEL)

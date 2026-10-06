@@ -21,6 +21,7 @@ MODE.InfectedAtStart = 2
 MODE.ZombieRespawnDelay = 5
 MODE.ZombieCorpseLifeTime = 60 -- через сколько секунд исчезает труп зараженного
 MODE.PistolChance = 15
+MODE.WelderChance = 35 -- шанс получить сварочный аппарат на старте (один выживший получает его всегда)
 
 local TEAM_SURVIVORS = 0
 local TEAM_INFECTED = 1
@@ -34,7 +35,7 @@ local survivorMelee = {
 	"weapon_bat",
 	"weapon_leadpipe",
 	"weapon_hatchet",
-	"weapon_zs_hammer",
+	"weapon_hammer",
 	"weapon_pocketknife",
 	"weapon_hg_shovel",
 	"weapon_pan",
@@ -283,11 +284,20 @@ function MODE:GiveEquipment()
 
 	local infectedCount = math.Clamp(self.InfectedAtStart, 0, math.max(#players - 1, 0))
 
+	local welderGiven = false
+
 	for i, ply in ipairs(players) do
 		if i <= infectedCount then
 			SetupInfectedSpectator(ply)
 		else
 			SetupSurvivor(ply)
+
+			-- сварочный аппарат для баррикад (sh_zs_barricade.lua)
+			if not welderGiven or math.random(100) <= self.WelderChance then
+				welderGiven = true
+				ply:Give("weapon_zs_arcwelder")
+				ZS_BARRICADE.SetElectrodes(ply, ZS_BARRICADE.WelderElectrodes)
+			end
 		end
 	end
 end

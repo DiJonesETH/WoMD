@@ -21,7 +21,7 @@ ZS_SUPPLY_BOXES = {
 		model = "models/props/cs_militia/footlocker01_closed.mdl",
 		color = Color(240, 200, 30),
 		weapon = "weapon_zs_box_tech",
-		desc = "Gives duct tape, a hammer and 32 nails every 2 minutes",
+		desc = "Gives duct tape, a hammer, 32 nails, an arc welder and 10 electrodes every 2 minutes",
 	},
 }
 
