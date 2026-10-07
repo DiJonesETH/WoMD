@@ -153,6 +153,11 @@ MODE.SkillTrees = {
 			desc = "The infected goes into a furious attack on downed players.\n+ Grabbing a ragdolled survivor with both hands, you deal a series of frenzied slashing hits until they die.",
 			short = "two-handed grab in ragdoll",
 			cost = 600,
+			upgrade = {
+				id = "lethal_dash",
+				name = "Lethal Dash",
+				desc = "If your Dash knocks a survivor down, you instantly fall on them in ragdoll, grab them with both hands and deal a series of hits.",
+			},
 			branch = "left",
 			requires = {"clinging_claws"},
 			pos = {x = 0, y = 1},
@@ -208,6 +213,11 @@ MODE.SkillTrees = {
 			desc = "The virus grows sharp spikes under pressure.\n+ Press E+M1 to shoot a spike once per life",
 			short = "E+M1: spike (once per life)",
 			cost = 200,
+			upgrade = {
+				id = "paralyzing_growths",
+				name = "Paralyzing Growths",
+				desc = "2 seconds after the spike hits a survivor, their body is paralyzed: they fall into a petrified ragdoll for 7 seconds.",
+			},
 			branch = "left",
 			requires = {"nutrient_medium"},
 			pos = {x = 0, y = 3},
@@ -274,12 +284,32 @@ function MODE:GetAllSkillIds()
 	local ids = {}
 
 	for _, tree in pairs(self.SkillTrees) do
-		for id in pairs(tree) do
+		for id, skill in pairs(tree) do
 			ids[id] = true
+			if skill.upgrade then ids[skill.upgrade.id] = true end
 		end
 	end
 
 	return ids
+end
+
+-- Улучшение навыка: доступно только для изученного навыка с полем upgrade, стоит в UpgradeCostMul раз дороже навыка.
+-- Улучшение хранится как отдельный навык upgrade.id (ZS_HasSkill(ply, upgrade.id)).
+MODE.UpgradeCostMul = 2
+
+function MODE:GetUpgradeCost(skill)
+	return (skill.cost or 0) * self.UpgradeCostMul
+end
+
+function MODE:CanUpgradeSkill(owned, class, id, points)
+	local tree = self.SkillTrees[class]
+	local skill = tree and tree[id]
+	if not skill or not skill.upgrade then return false, "none" end
+	if owned[skill.upgrade.id] then return false, "owned" end
+	if not owned[id] then return false, "requires" end
+	if points and points < self:GetUpgradeCost(skill) then return false, "points" end
+
+	return true
 end
 
 -- можно ли купить навык; reason - причина отказа

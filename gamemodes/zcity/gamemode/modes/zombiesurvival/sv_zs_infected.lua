@@ -7,6 +7,7 @@ local TEAM_SURVIVORS = 0
 util.AddNetworkString("zs_openclassmenu")
 util.AddNetworkString("zs_chooseclass")
 util.AddNetworkString("zs_buyskill")
+util.AddNetworkString("zs_upgradeskill")
 util.AddNetworkString("zs_skills")
 
 local Infected = {}
@@ -129,6 +130,24 @@ net.Receive("zs_buyskill", function(len, ply)
 
 	GrantSkill(ply, skillId)
 	ply:EmitSound("npc/zombie/zombie_alert" .. math.random(3) .. ".wav", 70)
+end)
+
+-- улучшение изученного навыка (MODE:CanUpgradeSkill в sh_zs.lua)
+net.Receive("zs_upgradeskill", function(len, ply)
+	local skillId = net.ReadString()
+
+	if not IsZSRound() or not ply.zs_Class then return end
+
+	ply.zs_Skills = ply.zs_Skills or {}
+
+	local points = ply:GetNWInt("ZS_Points", 0)
+	if not MODE:CanUpgradeSkill(ply.zs_Skills, ply.zs_Class, skillId, points) then return end
+
+	local skill = MODE.SkillTrees[ply.zs_Class][skillId]
+	ply:SetNWInt("ZS_Points", points - MODE:GetUpgradeCost(skill))
+
+	GrantSkill(ply, skill.upgrade.id)
+	ply:EmitSound("npc/zombie_poison/pz_alert" .. math.random(2) .. ".wav", 75)
 end)
 
 -- Урон зараженных по выжившим:

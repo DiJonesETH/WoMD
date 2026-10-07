@@ -134,6 +134,7 @@ local function WrapText(text, font, width)
 	return lines
 end
 local colLocked = Color(70, 70, 70)
+local colGold = Color(230, 180, 40)
 local colLine = Color(200, 200, 200, 90)
 
 -- состояние навыка для отрисовки: owned, available, nopoints, locked
@@ -145,6 +146,15 @@ local function SkillState(class, id)
 	if reason == "points" then return "nopoints" end
 
 	return "locked"
+end
+
+-- состояние улучшения: nil (нет улучшения или навык не изучен), upgraded, available, nopoints
+local function UpgradeState(class, id, skill)
+	if not skill.upgrade or not mySkills[id] then return end
+	if mySkills[skill.upgrade.id] then return "upgraded" end
+
+	local ok = MODE:CanUpgradeSkill(mySkills, class, id, lply:GetNWInt("ZS_Points", 0))
+	return ok and "available" or "nopoints"
 end
 
 local function BuildSkillGrid(parent, class, info)
@@ -206,8 +216,17 @@ local function BuildSkillGrid(parent, class, info)
 		node:SetText("")
 		node.DescLines = WrapText(skill.desc, "ZS_SkillDesc", nodeW - 16)
 
+		if skill.upgrade then
+			node.UpgradeLines = WrapText("Upgrade - " .. skill.upgrade.name .. ": " .. skill.upgrade.desc, "ZS_SkillDesc", nodeW - 16)
+			node:SetTooltip("Upgrade: " .. skill.upgrade.name .. " (" .. MODE:GetUpgradeCost(skill) .. " pts)\n" .. skill.upgrade.desc)
+		end
+
 		node.Paint = function(self, nw, nh)
 			local state = SkillState(class, id)
+			local upState = UpgradeState(class, id, skill)
+
+			-- улучшенный навык красится в золотой, как последний навык дерева
+			local col = upState == "upgraded" and colGold or col
 			local main = state == "locked" and colLocked or col
 			local bg
 
@@ -223,8 +242,20 @@ local function BuildSkillGrid(parent, class, info)
 			surface.SetDrawColor(main)
 			surface.DrawOutlinedRect(0, 0, nw, nh, (state == "owned" or (state == "available" and self:IsHovered())) and 3 or 1)
 
-			-- название и описание навыка
-			draw.SimpleText(skill.name or id, "ZS_SkillName", nw * 0.5, 4, state == "locked" and colGray or col, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+			-- название и описание навыка (после улучшения - название улучшения)
+			local title = upState == "upgraded" and skill.upgrade.name or (skill.name or id)
+			draw.SimpleText(title, "ZS_SkillName", nw * 0.5, 4, state == "locked" and colGray or col, TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+
+			-- значок: навык можно улучшить
+			if upState == "available" or upState == "nopoints" then
+				local pulse = upState == "available" and (0.55 + math.abs(math.sin(CurTime() * 3)) * 0.45) or 0.35
+				local badge = ColorAlpha(colGold, 255 * pulse)
+
+				draw.RoundedBox(4, nw - 34, 4, 30, 18, Darken(colGold, 0.25 * pulse, 230))
+				surface.SetDrawColor(badge)
+				surface.DrawOutlinedRect(nw - 34, 4, 30, 18, 1)
+				draw.SimpleText("UP", "ZS_SkillDesc", nw - 19, 13, badge, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			end
 
 			surface.SetFont("ZS_SkillName")
 			local _, nameH = surface.GetTextSize("A")
@@ -237,8 +268,21 @@ local function BuildSkillGrid(parent, class, info)
 				y = y + lineH
 			end
 
-			local status
-			if state == "owned" then
+			if upState == "upgraded" then
+				y = y + lineH * 0.4
+				for _, line in ipairs(self.UpgradeLines) do
+					draw.SimpleText(line, "ZS_SkillDesc", 8, y, colGold, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+					y = y + lineH
+				end
+			end
+
+			local status, statusCol
+			if upState == "upgraded" then
+				status, statusCol = "Upgraded", colGold
+			elseif upState then
+				status = "Upgrade: " .. MODE:GetUpgradeCost(skill) .. " pts"
+				statusCol = upState == "available" and colGold or colGray
+			elseif state == "owned" then
 				status = "Learned"
 			elseif state == "locked" then
 				status = "Locked"
@@ -246,10 +290,18 @@ local function BuildSkillGrid(parent, class, info)
 				status = (skill.cost or 0) .. " pts"
 			end
 
-			draw.SimpleText(status, "ZS_SkillName", nw - 8, nh - 4, state == "available" and col or colGray, TEXT_ALIGN_RIGHT, TEXT_ALIGN_BOTTOM)
+			draw.SimpleText(status, "ZS_SkillName", nw - 8, nh - 4, statusCol or (state == "available" and col or colGray), TEXT_ALIGN_RIGHT, TEXT_ALIGN_BOTTOM)
 		end
 
 		node.DoClick = function()
+			-- клик по изученному навыку покупает улучшение
+			if UpgradeState(class, id, skill) == "available" then
+				net.Start("zs_upgradeskill")
+					net.WriteString(id)
+				net.SendToServer()
+				return
+			end
+
 			if SkillState(class, id) ~= "available" then
 				surface.PlaySound("buttons/button10.wav")
 				return
@@ -290,7 +342,7 @@ function UI.ToggleSkillTree()
 
 		draw.SimpleText(info.name .. " skill tree", "ZB_InterfaceMediumLarge", 20, 30, colWhite, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 		draw.SimpleText("Points: " .. lply:GetNWInt("ZS_Points", 0), "ZB_InterfaceMediumLarge", pw - 50, 30, colWhite, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER)
-		draw.SimpleText("Hit: 1 pt per HP  |  Kill or assist: 200  |  Corpse: 200  |  +1 per sec  |  Branches are exclusive  |  I - close", "ZB_InterfaceSmall", pw * 0.5, ph - 16, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText("Hit: 1 pt per HP  |  Kill or assist: 200  |  Corpse: 200  |  +1 per sec  |  Branches are exclusive  |  UP - click a learned skill to upgrade it (2x cost)  |  I - close", "ZB_InterfaceSmall", pw * 0.5, ph - 16, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 
 	local body = vgui.Create("DPanel", skillMenu)

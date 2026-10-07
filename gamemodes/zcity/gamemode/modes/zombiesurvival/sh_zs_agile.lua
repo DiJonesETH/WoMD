@@ -227,6 +227,112 @@ local function Dash(ply)
 	ply.zs_DashHit = {}
 end
 
+-- Летальный рывок (улучшение летального захвата): если рывок сбил выжившего, зараженный сам падает в регдолл,
+-- хватается за него обеими руками (свои сварки, а не хваты управления регдоллом) и наносит серию ударов
+local LETHAL_DASH_TIME, LETHAL_DASH_INTERVAL = 3, 0.3
+local lethalDashes = {}
+
+local function ReleaseLethalDash(ply)
+	local grab = lethalDashes[ply]
+	lethalDashes[ply] = nil
+	if not grab then return end
+
+	for _, cons in ipairs(grab.welds) do
+		if IsValid(cons) then cons:Remove() end
+	end
+
+	if IsValid(grab.victim) then grab.victim.zs_LethalDashBy = nil end
+end
+
+local function PhysBoneByName(ragdoll, name)
+	local bone = ragdoll:LookupBone(name)
+	return bone and ragdoll:TranslateBoneToPhysBone(bone)
+end
+
+local function StartLethalDash(ply, victim)
+	if lethalDashes[ply] or not ZS_HasSkill(ply, "lethal_dash") then return end
+
+	timer.Simple(0, function()
+		if not IsLivingZombie(ply) or not IsLivingSurvivor(victim) or lethalDashes[ply] then return end
+
+		local target = victim.FakeRagdoll
+		if not IsValid(target) then return end
+
+		if not IsValid(ply.FakeRagdoll) then hg.Fake(ply) end
+
+		local ragdoll = ply.FakeRagdoll
+		if not IsValid(ragdoll) then return end
+
+		local torso = PhysBoneByName(target, "ValveBiped.Bip01_Spine2") or 0
+		local torsoPhys = target:GetPhysicsObjectNum(torso)
+		if not IsValid(torsoPhys) then return end
+
+		-- руки зараженного ложатся на грудь выжившего и привариваются к ней
+		local welds = {}
+		for i, hand in ipairs({"ValveBiped.Bip01_L_Hand", "ValveBiped.Bip01_R_Hand"}) do
+			local handBone = PhysBoneByName(ragdoll, hand)
+			local handPhys = handBone and ragdoll:GetPhysicsObjectNum(handBone)
+
+			if IsValid(handPhys) then
+				handPhys:SetPos(torsoPhys:GetPos() + torsoPhys:GetAngles():Right() * (i == 1 and -5 or 5))
+
+				local cons = constraint.Weld(ragdoll, target, handBone, torso, 0, false, false)
+				if IsValid(cons) then welds[#welds + 1] = cons end
+			end
+		end
+
+		lethalDashes[ply] = {
+			victim = victim,
+			target = target,
+			welds = welds,
+			untilTime = CurTime() + LETHAL_DASH_TIME,
+			nextHit = CurTime(),
+		}
+
+		victim.zs_LethalDashBy = ply
+		ply:EmitSound("npc/fast_zombie/fz_frenzy1.wav", 85, math.random(95, 105))
+	end)
+end
+
+local function LethalDashThink(ply)
+	local grab = lethalDashes[ply]
+	if not grab then return end
+
+	local target = grab.target
+	if CurTime() > grab.untilTime or not IsValid(ply.FakeRagdoll) or not IsLivingSurvivor(grab.victim) or grab.victim.FakeRagdoll ~= target then
+		ReleaseLethalDash(ply)
+		return
+	end
+
+	if grab.nextHit > CurTime() then return end
+	grab.nextHit = CurTime() + LETHAL_DASH_INTERVAL * ply:GetNWFloat("ZS_AttackMul", 1)
+
+	local phys = target:GetPhysicsObjectNum(math.random(0, target:GetPhysicsObjectCount() - 1))
+	local pos = IsValid(phys) and phys:GetPos() or target:GetPos()
+
+	local dmg = DamageInfo()
+	dmg:SetAttacker(ply)
+	dmg:SetInflictor(IsValid(ply:GetActiveWeapon()) and ply:GetActiveWeapon() or ply)
+	dmg:SetDamage(math.random(6, 12))
+	dmg:SetDamageType(DMG_SLASH)
+	dmg:SetDamageForce(VectorRand() * 50)
+	dmg:SetDamagePosition(pos)
+	target:TakeDamageInfo(dmg)
+
+	sound.Play("npc/zombie/claw_strike" .. math.random(3) .. ".wav", pos, 70, math.random(90, 110))
+	util.Decal("Blood", pos + Vector(0, 0, 8), pos - Vector(0, 0, 16))
+end
+
+-- во время серии ударов ни зараженный, ни выживший не встают
+hook.Add("Should Fake Up", "ZS_LethalDash", function(ply)
+	if lethalDashes[ply] or IsValid(ply.zs_LethalDashBy) then return false end
+end)
+
+hook.Add("PlayerDeath", "ZS_LethalDash", function(ply)
+	ReleaseLethalDash(ply)
+	if IsValid(ply.zs_LethalDashBy) then ReleaseLethalDash(ply.zs_LethalDashBy) end
+end)
+
 local function DashThink(ply)
 	if not ply.zs_DashUntil then return end
 
@@ -262,6 +368,12 @@ local function DashThink(ply)
 		end
 
 		victim:EmitSound("physics/body/body_medium_impact_hard" .. math.random(6) .. ".wav", 75)
+
+		if IsValid(victim.FakeRagdoll) then
+			ply.zs_DashUntil = nil
+			StartLethalDash(ply, victim)
+			return
+		end
 	end
 end
 
@@ -378,5 +490,6 @@ hook.Add("Think", "ZS_AgileAbilitiesThink", function()
 
 		DashThink(ply)
 		GrabThink(ply)
+		LethalDashThink(ply)
 	end
 end)
