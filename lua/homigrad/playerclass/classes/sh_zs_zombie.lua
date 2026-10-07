@@ -225,6 +225,13 @@ hook.Add("ZB_CanLootInventory", "ZS_ZombieLoot", function(ply, ent)
 	end
 end)
 
+-- зараженные не открывают двери (выбить дверь когтями по-прежнему можно)
+hook.Add("PlayerUse", "ZS_ZombieDoors", function(ply, ent)
+	if ZS_IsZombie(ply) and IsValid(ent) and hgIsDoor and hgIsDoor(ent) then
+		return false
+	end
+end)
+
 hook.Add("CanPlayerEnterVehicle", "ZS_ZombieVehicle", function(ply, ent)
 	if ZS_IsZombie(ply) then
 		return false
