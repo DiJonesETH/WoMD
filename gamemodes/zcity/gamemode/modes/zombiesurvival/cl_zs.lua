@@ -90,7 +90,10 @@ net.Receive("zs_roundend", function()
 
 	surface.PlaySound("ambient/alarms/warningbell1.wav")
 
-	if winner == WINNER_NONE then
+	if winner == 2 then
+		-- термоядерный взрыв (cl_zs_victorykey.lua)
+		Announce("No one have to fight anymore", colInfected)
+	elseif winner == WINNER_NONE then
 		Announce("Round ended", colWhite)
 	elseif winner == TEAM_SURVIVORS then
 		Announce("Survivors held out through all " .. waves .. " waves!", colSurvivor)

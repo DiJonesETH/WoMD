@@ -364,6 +364,9 @@ end
 function MODE:ShouldRoundEnd()
 	if not self.saved.StartTime then return false end
 
+	-- термоядерный взрыв (sv_zs_victorykey.lua)
+	if self:CheckNukeEnd() then return true end
+
 	if CountAliveSurvivors() == 0 then
 		self.saved.Winner = TEAM_INFECTED
 		return true
