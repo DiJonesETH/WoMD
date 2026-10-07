@@ -236,9 +236,8 @@ do
 end
 
 -- Парализующие наросты (улучшение баллистических наростов): через PARALYZE_DELAY секунд после попадания шипа
--- выживший падает в регдолл и "каменеет" (все кости регдолла сварены между собой) на PARALYZE_TIME секунд
+-- выживший падает в регдолл с парализованными мышцами (все кости регдолла сварены между собой) на PARALYZE_TIME секунд
 local PARALYZE_DELAY, PARALYZE_TIME = 2, 7
-local colStone = Color(150, 150, 150)
 
 local function Unparalyze(victim)
 	if not IsValid(victim) then return end
@@ -247,12 +246,7 @@ local function Unparalyze(victim)
 		if IsValid(cons) then cons:Remove() end
 	end
 
-	local ragdoll = victim.zs_ParalyzeRagdoll
-	if IsValid(ragdoll) and victim.zs_ParalyzeColor then ragdoll:SetColor(victim.zs_ParalyzeColor) end
-
 	victim.zs_ParalyzeWelds = nil
-	victim.zs_ParalyzeRagdoll = nil
-	victim.zs_ParalyzeColor = nil
 	victim.zs_ParalyzedUntil = nil
 end
 
@@ -273,13 +267,7 @@ local function Petrify(victim)
 	end
 
 	victim.zs_ParalyzeWelds = welds
-	victim.zs_ParalyzeRagdoll = ragdoll
-	victim.zs_ParalyzeColor = ragdoll:GetColor()
 	victim.zs_ParalyzedUntil = CurTime() + PARALYZE_TIME
-
-	ragdoll:SetColor(colStone)
-	ragdoll:EmitSound("physics/concrete/concrete_impact_hard" .. math.random(3) .. ".wav", 75, 80)
-	victim:ChatPrint("Your body is paralyzed!")
 
 	timer.Create("ZS_Paralyze" .. victim:EntIndex(), PARALYZE_TIME, 1, function()
 		Unparalyze(victim)

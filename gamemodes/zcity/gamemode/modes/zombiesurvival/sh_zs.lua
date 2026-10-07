@@ -216,7 +216,7 @@ MODE.SkillTrees = {
 			upgrade = {
 				id = "paralyzing_growths",
 				name = "Paralyzing Growths",
-				desc = "2 seconds after the spike hits a survivor, their body is paralyzed: they fall into a petrified ragdoll for 7 seconds.",
+				desc = "2 seconds after the spike hits a survivor, their muscles are paralyzed: they fall into a stiff ragdoll for 7 seconds.",
 			},
 			branch = "left",
 			requires = {"nutrient_medium"},
