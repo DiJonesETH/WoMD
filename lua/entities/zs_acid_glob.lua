@@ -62,6 +62,9 @@ if SERVER then
 
 			hit[victim] = true
 
+			-- кислота босса-гонома парализует, как "Парализующие наросты"
+			if self.zs_Paralyze and ZS_ParalyzeSurvivor then ZS_ParalyzeSurvivor(victim) end
+
 			local char = hg.GetCurrentCharacter(victim)
 
 			-- ожог: именно тип урона DMG_BURN

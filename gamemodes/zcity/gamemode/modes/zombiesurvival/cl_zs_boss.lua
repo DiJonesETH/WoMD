@@ -56,9 +56,12 @@ local function Animate(ply, puppet, dt)
 	puppet.zs_Vel = Lerp(math.min(dt * 8, 1), puppet.zs_Vel or 0, ply:GetVelocity():Length2D())
 	local vel = puppet.zs_Vel
 
-	local attackSeq = "attack" .. ply:GetNWInt("ZS_GonomeAttackSeq", 1)
-	local attackStart = OneShotActive(ply, puppet, "ZS_GonomeAttack", attackSeq, 1.4)
-	if attackStart then return OneShotSeq(puppet, attackSeq, attackStart, 1.4) end
+	-- attack1/attack2 - удары и захват (ускорены), attack3 - плевок кислотой в своем темпе
+	local seqNum = ply:GetNWInt("ZS_GonomeAttackSeq", 1)
+	local attackSeq = "attack" .. seqNum
+	local attackRate = seqNum == 3 and 1 or 1.4
+	local attackStart = OneShotActive(ply, puppet, "ZS_GonomeAttack", attackSeq, attackRate)
+	if attackStart then return OneShotSeq(puppet, attackSeq, attackStart, attackRate) end
 
 	local flinchStart = OneShotActive(ply, puppet, "ZS_GonomeFlinch", "small_flinch")
 	if flinchStart then return OneShotSeq(puppet, "small_flinch", flinchStart) end

@@ -274,15 +274,25 @@ local function Petrify(victim)
 	end)
 end
 
-local function ParalyzeHit(ply, ent)
-	local victim = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
-	if not IsLivingSurvivor(victim) or not ZS_HasSkill(ply, "paralyzing_growths") then return end
+-- паралич выжившего через PARALYZE_DELAY секунд (также кислота босса-гонома, zs_acid_glob.zs_Paralyze)
+function ZS_ParalyzeSurvivor(victim)
+	if not IsLivingSurvivor(victim) or victim.zs_ParalyzePending then return end
+	victim.zs_ParalyzePending = true
 
 	victim:EmitSound("npc/barnacle/barnacle_digesting" .. math.random(2) .. ".wav", 65, 140)
 
 	timer.Simple(PARALYZE_DELAY, function()
+		if not IsValid(victim) then return end
+		victim.zs_ParalyzePending = nil
 		Petrify(victim)
 	end)
+end
+
+local function ParalyzeHit(ply, ent)
+	local victim = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
+	if not ZS_HasSkill(ply, "paralyzing_growths") then return end
+
+	ZS_ParalyzeSurvivor(victim)
 end
 
 -- парализованный не может встать

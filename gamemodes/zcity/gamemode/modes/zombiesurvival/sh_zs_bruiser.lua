@@ -474,20 +474,31 @@ local function TearLimb(ply, hold)
 	local org = victim.organism
 	if not org or org[limb .. "amputated"] then return end
 
-	ply.zs_GuillotineUsed = true
+	if hold.tearAll then
+		-- босс-гоном разрывает выжившего на части: все конечности, затем голова
+		for _, other in ipairs(guillotineLimbs) do
+			if other ~= "head" and not org[other .. "amputated"] then hg.organism.AmputateLimb(org, other) end
+		end
 
-	if limb == "head" then
 		hg.ExplodeHead(hg.GetCurrentCharacter(victim))
 	else
-		hg.organism.AmputateLimb(org, limb)
+		ply.zs_GuillotineUsed = true
+
+		if limb == "head" then
+			hg.ExplodeHead(hg.GetCurrentCharacter(victim))
+		else
+			hg.organism.AmputateLimb(org, limb)
+		end
 	end
 
 	ply:EmitSound("npc/zombie_poison/pz_throw" .. math.random(2, 3) .. ".wav", 85)
 	ply:EmitSound("physics/flesh/flesh_bloody_break.wav", 80, math.random(90, 110))
 end
 
-local function Guillotine(ply)
-	if ply.zs_GuillotineUsed or guillotineHolds[ply] or (ply.zs_NextGuillotine or 0) > CurTime() then return end
+-- opts.tearAll: разорвать выжившего целиком (босс-гоном, sv_zs_boss.lua) и не тратить навык "раз за жизнь"
+local function Guillotine(ply, opts)
+	opts = opts or {}
+	if (ply.zs_GuillotineUsed and not opts.tearAll) or guillotineHolds[ply] or (ply.zs_NextGuillotine or 0) > CurTime() then return end
 
 	local eye = ply:EyePos()
 
@@ -521,14 +532,19 @@ local function Guillotine(ply)
 		victim = victim,
 		limb = available[math.random(#available)],
 		tearAt = CurTime() + GUILLOTINE_HOLD,
+		tearAll = opts.tearAll,
 	}
 
 	victim.zs_GuillotineHeld = ply
 	ply:SetNWFloat("ZS_GuillotineUntil", CurTime() + GUILLOTINE_HOLD)
 
-	ply:EmitSound("npc/zombie_poison/pz_warn" .. math.random(2) .. ".wav", 85)
+	if not opts.tearAll then ply:EmitSound("npc/zombie_poison/pz_warn" .. math.random(2) .. ".wav", 85) end
 	victim:EmitSound("physics/body/body_medium_impact_soft" .. math.random(7) .. ".wav", 75)
+
+	return true
 end
+
+ZS_Guillotine = Guillotine
 
 -- удержание: конечность тянется к рукам зараженного, тело повисает на ней
 hook.Add("Think", "ZS_BruiserGuillotineHold", function()

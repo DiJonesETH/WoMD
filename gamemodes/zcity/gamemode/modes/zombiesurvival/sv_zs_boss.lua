@@ -5,7 +5,10 @@ local MODE = MODE
 -- Босс не падает в регдолл, не получает урон организма (боль, органы, кровь): весь урон снимается
 -- с отдельного запаса здоровья ZS_BossHP (здоровье игрока homigrad обрезает до 100). Клиент: cl_zs_boss.lua
 MODE.BossWave = 3
-MODE.BossHealth = 3000
+MODE.BossHealth = 5000
+MODE.BossGrabCooldown = 30
+MODE.BossSpitCooldown = 10
+MODE.BossSpitDelay = 1.5
 
 util.AddNetworkString("zs_boss_rise")
 util.AddNetworkString("zs_boss_death")
@@ -87,6 +90,56 @@ hook.Add("ZS_ClawAttack", "ZS_Boss", function(ply, special)
 	ply:SetNWFloat("ZS_GonomeAttack", CurTime())
 	ply:SetNWInt("ZS_GonomeAttackSeq", special and 2 or math.random(1, 2))
 	ply:EmitSound("vj_hlr/gsrc/npc/gonome/gonome_melee" .. math.random(2) .. ".wav", 85)
+end)
+
+-- E+M1: схватить выжившего и разорвать на части (гильотина громилы, sh_zs_bruiser.lua), раз в BossGrabCooldown секунд
+local function BossGrab(ply)
+	if (ply.zs_NextBossGrab or 0) > CurTime() then return end
+	if not ZS_Guillotine or not ZS_Guillotine(ply, {tearAll = true}) then return end
+
+	ply.zs_NextBossGrab = CurTime() + MODE.BossGrabCooldown
+
+	ply:SetNWFloat("ZS_GonomeAttack", CurTime())
+	ply:SetNWInt("ZS_GonomeAttackSeq", 2) -- "схватить и сожрать"
+	ply:EmitSound("vj_hlr/gsrc/npc/gonome/gonome_melee2.wav", 95)
+end
+
+-- E+M2: плевок кислотой (анимация attack3), сгустки парализуют, как "Парализующие наросты"
+local function BossSpit(ply)
+	if (ply.zs_NextBossSpit or 0) > CurTime() then return end
+	ply.zs_NextBossSpit = CurTime() + MODE.BossSpitCooldown
+
+	ply:SetNWFloat("ZS_GonomeAttack", CurTime())
+	ply:SetNWInt("ZS_GonomeAttackSeq", 3)
+	ply:EmitSound("vj_hlr/gsrc/npc/gonome/gonome_melee1.wav", 95)
+
+	timer.Simple(MODE.BossSpitDelay, function()
+		if not IsValid(ply) or not ply:Alive() or not ZS_IsBoss(ply) or not ZS_SpawnAcidGlob then return end
+
+		local aim = ply:GetAimVector()
+		local pos = ply:EyePos() + aim * 20
+
+		for i = 1, 5 do
+			local spread = i == 1 and vector_origin or VectorRand() * 0.06
+			local glob = ZS_SpawnAcidGlob(ply, pos, (aim + spread + Vector(0, 0, 0.08)):GetNormalized() * 950)
+			if IsValid(glob) then
+				glob.zs_Paralyze = true
+				glob.SplashRadius = 64
+			end
+		end
+
+		ply:EmitSound("npc/antlion_guard/angry" .. math.random(3) .. ".wav", 80, 140)
+	end)
+end
+
+hook.Add("KeyPress", "ZS_BossAbilities", function(ply, key)
+	if not ZS_IsBoss(ply) or not ply:Alive() or not ply:KeyDown(IN_USE) then return end
+
+	if key == IN_ATTACK then
+		BossGrab(ply)
+	elseif key == IN_ATTACK2 then
+		BossSpit(ply)
+	end
 end)
 
 -- рычание раз в несколько секунд
