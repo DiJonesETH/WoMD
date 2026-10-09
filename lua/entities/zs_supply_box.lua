@@ -79,6 +79,11 @@ if SERVER then
 			return price
 		end,
 
+		attachment = function(ply, item)
+			hg.GiveAttachment(ply, item.att)
+			return item.price
+		end,
+
 		armor = function(ply, item)
 			for _, worn in pairs(ply.armors or {}) do
 				if worn == item.armor then return nil, "You already wear this" end
@@ -202,6 +207,10 @@ local iconCache = {}
 local function ItemIcon(item)
 	if item.icon then return item.icon end
 	if item.armor then return hg.armorIcons and hg.armorIcons[item.armor] or "icon16/shield.png" end
+	if item.att then
+		local icon = hg.attachmentsIcons and hg.attachmentsIcons[item.att]
+		return icon and not Material(icon):IsError() and icon or "icon16/cog.png"
+	end
 	if iconCache[item.class] then return iconCache[item.class] end
 
 	local stored = weapons.GetStored(item.class)
@@ -215,6 +224,7 @@ end
 local function ItemName(item)
 	if item.name then return item.name end
 	if item.armor then return hg.armorNames and hg.armorNames[item.armor] or item.armor end
+	if item.att then return hg.attachmentslaunguage and hg.attachmentslaunguage[item.att] or item.att end
 
 	local stored = weapons.GetStored(item.class)
 	return stored and stored.PrintName and language.GetPhrase(stored.PrintName) or item.class
