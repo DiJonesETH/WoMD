@@ -99,6 +99,7 @@ ZS_BOSS_CLASSES = {
 		meleeMul = 2,
 		clawsName = "Gonome Claws",
 		boss = true,
+		modelScale = 1.18, -- скрытая модель вырастает до роста гонома (~85): хитбоксы покрывают всю его фигуру
 	},
 }
 
@@ -168,7 +169,11 @@ for className, info in pairs(allClasses) do
 		self:SelectWeapon("weapon_hands_sh")
 
 		-- эффекты навыков после того, как homigrad выставит хитбокс игрока при спавне (у босса навыков нет)
-		if info.boss then return end
+		if info.boss then
+			-- пули попадают по хитбоксам модели, масштаб модели сеть передает сама (хулл движения не трогаем)
+			self:SetModelScale(info.modelScale or 1, 0)
+			return
+		end
 
 		timer.Simple(0.2, function()
 			if IsValid(self) and self.PlayerClassName == className then
@@ -179,6 +184,8 @@ for className, info in pairs(allClasses) do
 
 	function CLASS.Off(self)
 		if CLIENT then return end
+
+		if info.boss then self:SetModelScale(1, 0) end
 
 		self:SetMaterial("")
 		self:SetNWString("ZS_Visual", "")
@@ -299,6 +306,15 @@ end)
 
 hook.Add("CalcMainActivity", "ZS_ZombieAnims", function(ply, vel)
 	if not ZS_IsZombie(ply) then return end
+
+	-- босс: скрытая модель стоит прямо, чтобы ее хитбоксы совпадали с моделью гонома (cl_zs_boss.lua)
+	local info = ZS_ClassInfo(ply.PlayerClassName)
+	if info.boss then
+		local anim = vel:Length2DSqr() > 400 and ACT_HL2MP_RUN or ACT_HL2MP_IDLE
+		if not ply:IsOnGround() and ply:GetMoveType() ~= MOVETYPE_NOCLIP then anim = ACT_HL2MP_JUMP_SLAM end
+
+		return anim, -1
+	end
 
 	local anim = ACT_HL2MP_RUN_ZOMBIE
 	if vel:LengthSqr() <= 0 then
