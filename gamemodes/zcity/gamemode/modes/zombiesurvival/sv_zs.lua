@@ -242,6 +242,7 @@ function MODE:Intermission()
 	game.CleanUpMap()
 
 	self.ResetSurvivorPoints()
+	SetGlobalEntity("ZS_LastMan", NULL)
 
 	local _, CROUND = CurrentRound()
 
@@ -325,6 +326,7 @@ local function UpdatePhase(mode, force)
 		if wave == mode.saved.Waves and lastWaveMusic:GetBool() then
 			timer.Create("ZS_LastWaveMusic", mode.LastWaveMusicDelay, 1, function()
 				if zb.ROUND_STATE == 1 and CurrentRound() == mode then
+					mode.saved.LastManMusic = nil
 					PlayMusic("lastwave")
 				end
 			end)
@@ -437,10 +439,15 @@ function MODE:PlayerDeath(ply, inflictor, attacker)
 
 		zb.GiveRole(ply, "Infected", colInfected)
 
-		-- последний выживший погиб: трек резко обрывается
+		-- последний выживший погиб: его трек резко обрывается (трек последней волны не трогаем)
 		if ply == self.saved.LastMan then
 			self.saved.LastMan = nil
-			PlayMusic("")
+			SetGlobalEntity("ZS_LastMan", NULL)
+
+			if self.saved.LastManMusic then
+				self.saved.LastManMusic = nil
+				PlayMusic("")
+			end
 		end
 
 		self:CheckLastMan()
@@ -465,11 +472,19 @@ function MODE:CheckLastMan()
 
 	self.AddSurvivorPoints(last, self.LastManPoints)
 
+	-- зараженные видят последнего выжившего сквозь стены (cl_zs.lua)
+	SetGlobalEntity("ZS_LastMan", last)
+
 	net.Start("zs_lastman")
 		net.WriteEntity(last)
 	net.Broadcast()
 
-	PlayMusic("lastman")
+	-- на последней волне играет ее трек, его не заменяем
+	local wave = GetPhase(self)
+	if wave < self.saved.Waves then
+		self.saved.LastManMusic = true
+		PlayMusic("lastman")
+	end
 end
 
 -- регдолл погибшего зараженного удаляется через минуту

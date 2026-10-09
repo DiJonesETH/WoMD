@@ -3,6 +3,7 @@ MODE.name = "zs"
 local MODE = MODE
 
 local TEAM_SURVIVORS = 0
+local TEAM_INFECTED = 1
 local WINNER_NONE = 3
 
 local colSurvivor = Color(60, 140, 255)
@@ -47,6 +48,31 @@ end)
 net.Receive("zs_lastman", function()
 	net.ReadEntity()
 	Announce("LAST MAN STANDING", colSurvivor)
+end)
+
+-- зараженные видят последнего выжившего красным силуэтом сквозь стены
+local lastManMat = Material("models/debug/debugwhite")
+
+hook.Add("PostDrawTranslucentRenderables", "ZS_LastManHighlight", function(depth, skybox)
+	if skybox or not IsValid(lply) or lply:Team() ~= TEAM_INFECTED then return end
+
+	local last = GetGlobalEntity("ZS_LastMan")
+	if not IsValid(last) or not last:Alive() or last:Team() ~= TEAM_SURVIVORS then return end
+
+	local ent = hg.GetCurrentCharacter(last)
+	if not IsValid(ent) then return end
+
+	cam.IgnoreZ(true)
+	render.MaterialOverride(lastManMat)
+	render.SetColorModulation(1, 0.15, 0.1)
+	render.SetBlend(0.6)
+
+	ent:DrawModel()
+
+	render.SetBlend(1)
+	render.SetColorModulation(1, 1, 1)
+	render.MaterialOverride()
+	cam.IgnoreZ(false)
 end)
 
 -- интро подраунда
