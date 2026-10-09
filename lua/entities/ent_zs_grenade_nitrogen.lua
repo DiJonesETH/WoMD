@@ -11,6 +11,7 @@ ENT.NotSpoon = true
 ENT.CloudRadius = 220
 ENT.FreezeTime = 3
 ENT.ArmDelay = 0.15 -- не срабатывает о руку бросившего
+ENT.HissTime = 1.5
 
 if CLIENT then
 	function ENT:Draw()
@@ -45,8 +46,11 @@ function ENT:Explode()
 	effect:SetRadius(self.CloudRadius)
 	util.Effect("eff_zs_nitrogen", effect, true, true)
 
-	-- одноразовое шипение (steam2.wav зациклен и не затихал бы)
-	sound.Play("npc/env_headcrabcanister/hiss.wav", pos, 80, 120)
+	-- шипение: у wav-файлов шипения есть метки цикла, поэтому звук играет через CSoundPatch
+	-- на спрятанной гранате и принудительно затухает (sound.Play зациклил бы его навсегда)
+	self.HissSound = CreateSound(self, "npc/env_headcrabcanister/hiss.wav")
+	self.HissSound:PlayEx(1, 120)
+	self.HissSound:FadeOut(self.HissTime)
 	sound.Play("physics/glass/glass_impact_bullet" .. math.random(4) .. ".wav", pos, 75, 80)
 
 	for _, ply in ipairs(ents.FindInSphere(pos, self.CloudRadius)) do
@@ -56,5 +60,17 @@ function ENT:Explode()
 		end
 	end
 
-	self:Remove()
+	self:SetNoDraw(true)
+	self:SetNotSolid(true)
+	self:SetMoveType(MOVETYPE_NONE)
+
+	local phys = self:GetPhysicsObject()
+	if IsValid(phys) then phys:EnableMotion(false) end
+	self:DrawShadow(false)
+
+	SafeRemoveEntityDelayed(self, self.HissTime + 0.1)
+end
+
+function ENT:OnRemove()
+	if self.HissSound then self.HissSound:Stop() end
 end
