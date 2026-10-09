@@ -53,14 +53,16 @@ local clawClasses = {
 	["headcrabzombie"] = 1.5,
 	["zs_bruiser"] = 0.8,
 	["zs_agile"] = 0.2,
-	["zs_metaboliser"] = 0.5
+	["zs_metaboliser"] = 0.5,
+	["zs_gonome"] = 0.6
 }
 
 -- зараженные Zombie Survival: когти со звуками ванильного зомби HL2
 local zsClawClasses = {
 	["zs_bruiser"] = true,
 	["zs_agile"] = true,
-	["zs_metaboliser"] = true
+	["zs_metaboliser"] = true,
+	["zs_gonome"] = true
 }
 
 local zsUseAttackSkills = {"dash", "hyperdontia", "mass_impulse", "ballistic_growths", "nest"}
@@ -1320,6 +1322,12 @@ local customClassInfo = {
 		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
 		handsDesc = "zs_metaboliser",
 		Instructions = "LMB - slash\nRMB - block\n\n<color=60,200,80>Balanced claws. Stay close to the horde to keep it alive."
+	},
+	["zs_gonome"] = {
+		PrintName = "Gonome Claws",
+		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
+		handsDesc = "zs_bruiser",
+		Instructions = "LMB - slash\nRMB - block\n\n<color=200,170,40>The Gonome tears survivors apart."
 	}
 }
 

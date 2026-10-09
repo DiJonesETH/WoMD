@@ -328,6 +328,10 @@ CalcView = function(ply, origin, angles, fov, znear, zfar)
 
 	if drive.CalcView(ply, view) then return view end
 
+	-- своя камера (например, классическая от первого лица у босса Zombie Survival, cl_zs_boss.lua)
+	local overridden = hook.Run("HG_OverrideView", ply, view)
+	if overridden then return overridden end
+
 	local rlEnt = hg.GetCurrentCharacter(ply)
 	lerpfovadd = LerpFT(0.01, lerpfovadd, (ply:IsSprinting() and rlEnt == ply and rlEnt:GetVelocity():LengthSqr() > 1500 and 10 or 0) - ( ply.organism and (ply.organism and (((ply.organism.immobilization or 0) / 4) - (ply.organism.adrenaline or 0) * 5 - (ply.organism.noradrenaline or 0) * 15)) or 0) / 2 - (ply.suiciding and (ply:GetNetVar("suicide_time",CurTime()) < CurTime()) and (1 - math.max(ply:GetNetVar("suicide_time",CurTime()) + 8 - CurTime(),0) / 8) * 20 or 0))
 	lerpfovadd2 = LerpFT(0.1, lerpfovadd2, zooming and -25 or 0)

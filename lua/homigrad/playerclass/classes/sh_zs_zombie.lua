@@ -77,8 +77,37 @@ ZS_ZOMBIE_CLASSES = {
 
 ZS_ZOMBIE_CLASS_ORDER = {"zs_bruiser", "zs_agile", "zs_metaboliser"}
 
+-- Боссы: отдельный вид зараженных, не класс на выбор (sv_zs_boss.lua). Навыков у них нет.
+ZS_BOSS_CLASSES = {
+	zs_gonome = {
+		key = "gonome",
+		name = "Gonome",
+		model = "", -- модель гонома рисует cl_zs_boss.lua (скелет HL1 не надевается через bonemerge)
+		viewModel = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModel,
+		viewModelFOV = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModelFOV,
+		viewModelHiddenBones = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModelHiddenBones,
+		sounds = {
+			steps = ZS_ZOMBIE_CLASSES.zs_bruiser.sounds.steps,
+			pain = {"vj_hlr/gsrc/npc/gonome/gonome_pain1.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain2.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain3.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain4.wav"},
+			death = {"vj_hlr/gsrc/npc/gonome/gonome_death2.wav", "vj_hlr/gsrc/npc/gonome/gonome_death3.wav", "vj_hlr/gsrc/npc/gonome/gonome_death4.wav"},
+			idle = {"vj_hlr/gsrc/npc/gonome/gonome_idle1.wav", "vj_hlr/gsrc/npc/gonome/gonome_idle2.wav", "vj_hlr/gsrc/npc/gonome/gonome_idle3.wav"},
+		},
+		color = Color(200, 170, 40),
+		speed = 1,
+		damageTaken = 1,
+		meleeMul = 2,
+		clawsName = "Gonome Claws",
+		boss = true,
+		viewOffset = Vector(0, 0, 76), -- гоном выше игрока
+	},
+}
+
+function ZS_ClassInfo(class)
+	return ZS_ZOMBIE_CLASSES[class] or ZS_BOSS_CLASSES[class]
+end
+
 function ZS_IsZombie(ply)
-	return IsValid(ply) and ZS_ZOMBIE_CLASSES[ply.PlayerClassName] ~= nil
+	return IsValid(ply) and ZS_ClassInfo(ply.PlayerClassName) ~= nil
 end
 
 -- босс-гоном (gamemodes/zcity/gamemode/modes/zombiesurvival/sv_zs_boss.lua): зараженный с NWBool ZS_Boss
@@ -88,6 +117,9 @@ end
 
 -- навыки дерева класса (режим Zombie Survival), синхронизируются через NWBool
 function ZS_HasSkill(ply, id)
+	-- у босса нет навыков класса, которым он был
+	if IsValid(ply) and ply.PlayerClassName and ZS_BOSS_CLASSES[ply.PlayerClassName] then return false end
+
 	return IsValid(ply) and ply:GetNWBool("ZS_Skill_" .. id, false)
 end
 
@@ -100,7 +132,10 @@ ZS_NAME_PREFIXES = {
 	zs_metaboliser = {"Bacterial", "Fungi", "Rotten", "Poisoned"},
 }
 
-for className, info in pairs(ZS_ZOMBIE_CLASSES) do
+local allClasses = table.Copy(ZS_ZOMBIE_CLASSES)
+for className, info in pairs(ZS_BOSS_CLASSES) do allClasses[className] = info end
+
+for className, info in pairs(allClasses) do
 	local CLASS = player.RegClass(className)
 
 	CLASS.CanUseDefaultPhrase = false
@@ -132,7 +167,11 @@ for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 		end
 		self:SelectWeapon("weapon_hands_sh")
 
-		-- эффекты навыков после того, как homigrad выставит хитбокс игрока при спавне
+		if info.viewOffset then self:SetViewOffset(info.viewOffset) end
+
+		-- эффекты навыков после того, как homigrad выставит хитбокс игрока при спавне (у босса навыков нет)
+		if info.boss then return end
+
 		timer.Simple(0.2, function()
 			if IsValid(self) and self.PlayerClassName == className then
 				hook.Run("ZS_ApplySkillEffects", self)
@@ -142,6 +181,8 @@ for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 
 	function CLASS.Off(self)
 		if CLIENT then return end
+
+		if info.viewOffset then self:SetViewOffset(Vector(0, 0, 64)) end
 
 		self:SetMaterial("")
 		self:SetNWString("ZS_Visual", "")
@@ -190,7 +231,7 @@ for className, info in pairs(ZS_ZOMBIE_CLASSES) do
 end
 
 function ZS_ZombieSound(ply, kind)
-	local info = ZS_ZOMBIE_CLASSES[ply.PlayerClassName]
+	local info = ZS_ClassInfo(ply.PlayerClassName)
 	local list = info and info.sounds and info.sounds[kind]
 	return list and list[math.random(#list)]
 end
@@ -252,7 +293,7 @@ end)
 hook.Add("HG_MovementCalc_2", "ZS_ZombieSpeed", function(mul, ply, cmd, mv)
 	if not ZS_IsZombie(ply) then return end
 
-	local info = ZS_ZOMBIE_CLASSES[ply.PlayerClassName]
+	local info = ZS_ClassInfo(ply.PlayerClassName)
 	mul[1] = info.speed * ply:GetNWFloat("ZS_SpeedMul", 1) * (ply:IsSprinting() and 1.2 or 0.9)
 
 	if ply.SpeedGainMul ~= 70 then
@@ -285,7 +326,7 @@ if SERVER then
 		if not ZS_IsZombie(ply) or not ply:Alive() then return end
 		if ZS_HasSkill(ply, "foot_growths") then return true end
 
-		local info = ZS_ZOMBIE_CLASSES[ply.PlayerClassName]
+		local info = ZS_ClassInfo(ply.PlayerClassName)
 		local sounds = info.sounds or {}
 		local chr = hg.GetCurrentCharacter(ply)
 		local list = sounds.steps
@@ -365,7 +406,7 @@ if SERVER then
 		local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
 		if not ZS_IsZombie(ply) then return end
 
-		dmgInfo:ScaleDamage(ZS_ZOMBIE_CLASSES[ply.PlayerClassName].damageTaken * (ply.zs_DamageTakenMul or 1))
+		dmgInfo:ScaleDamage(ZS_ClassInfo(ply.PlayerClassName).damageTaken * (ply.zs_DamageTakenMul or 1))
 	end)
 
 	local function HealOrganism(org, amount)
@@ -567,7 +608,7 @@ else
 		if not IsValid(ply) or not ply:Alive() or not ZS_IsZombie(ply) then return end
 		if GetViewEntity() ~= ply or IsValid(ply.FakeRagdoll) or (hg_thirdperson and hg_thirdperson:GetBool()) then return end
 
-		local info = ZS_ZOMBIE_CLASSES[ply.PlayerClassName]
+		local info = ZS_ClassInfo(ply.PlayerClassName)
 		local vm = UpdateClawModel(info)
 		if not IsValid(vm) then return end
 

@@ -10,6 +10,95 @@ local colBack = Color(0, 0, 0, 200)
 
 local puppets = {}
 
+-- последовательность с плавным временем: циклы накапливают cycle по времени кадра (скорость анимации
+-- меняется без скачков), разовые анимации (атака, вздрагивание) идут от момента начала
+local function SetSeq(puppet, name)
+	local seq = puppet:LookupSequence(name)
+	if seq < 0 then return end
+
+	if puppet.zs_Seq ~= seq then
+		puppet.zs_Seq = seq
+		puppet.zs_Cycle = 0
+		puppet:ResetSequence(seq)
+	end
+
+	return seq
+end
+
+local function LoopSeq(puppet, name, rate, dt)
+	local seq = SetSeq(puppet, name)
+	if not seq then return end
+
+	local duration = math.max(puppet:SequenceDuration(seq), 0.01)
+	puppet.zs_Cycle = (puppet.zs_Cycle + dt * rate / duration) % 1
+	puppet:SetCycle(puppet.zs_Cycle)
+end
+
+local function OneShotSeq(puppet, name, start, rate)
+	local seq = SetSeq(puppet, name)
+	if not seq then return end
+
+	local duration = math.max(puppet:SequenceDuration(seq), 0.01)
+	puppet:SetCycle(math.Clamp((CurTime() - start) * (rate or 1) / duration, 0, 1))
+end
+
+-- идет ли еще разовая анимация с NW-временем начала key
+local function OneShotActive(ply, puppet, key, name, rate)
+	local start = ply:GetNWFloat(key, 0)
+	local seq = puppet:LookupSequence(name)
+	if start <= 0 or seq < 0 then return end
+
+	if (CurTime() - start) * (rate or 1) < puppet:SequenceDuration(seq) then return start end
+end
+
+local function Animate(ply, puppet, dt)
+	-- сглаженная скорость и гистерезис между шагом и бегом: без мерцания анимаций
+	puppet.zs_Vel = Lerp(math.min(dt * 8, 1), puppet.zs_Vel or 0, ply:GetVelocity():Length2D())
+	local vel = puppet.zs_Vel
+
+	local attackSeq = "attack" .. ply:GetNWInt("ZS_GonomeAttackSeq", 1)
+	local attackStart = OneShotActive(ply, puppet, "ZS_GonomeAttack", attackSeq, 1.4)
+	if attackStart then return OneShotSeq(puppet, attackSeq, attackStart, 1.4) end
+
+	local flinchStart = OneShotActive(ply, puppet, "ZS_GonomeFlinch", "small_flinch")
+	if flinchStart then return OneShotSeq(puppet, "small_flinch", flinchStart) end
+
+	if not ply:OnGround() then
+		SetSeq(puppet, "jump1")
+		puppet:SetCycle(0.35)
+		return
+	end
+
+	local running = vel > 170 or (puppet.zs_Running and vel > 130)
+	puppet.zs_Running = running
+
+	if running then return LoopSeq(puppet, "runshort", math.Clamp(vel / 260, 0.6, 1.6), dt) end
+	if vel > 12 then return LoopSeq(puppet, "walk", math.Clamp(vel / 90, 0.5, 1.8), dt) end
+
+	LoopSeq(puppet, "idle1", 1, dt)
+end
+
+-- позиция и анимация обновляются прямо перед отрисовкой (интерполированная позиция игрока), один раз за кадр
+local function PuppetRender(self)
+	local ply = self.zs_Owner
+
+	if IsValid(ply) and self.zs_Frame ~= FrameNumber() then
+		self.zs_Frame = FrameNumber()
+
+		local dt = math.min(RealTime() - (self.zs_LastTime or RealTime()), 0.1)
+		self.zs_LastTime = RealTime()
+
+		self.zs_Yaw = self.zs_Yaw and math.ApproachAngle(self.zs_Yaw, ply:EyeAngles().y, dt * 540) or ply:EyeAngles().y
+
+		self:SetPos(ply:GetPos())
+		self:SetAngles(Angle(0, self.zs_Yaw, 0))
+		Animate(ply, self, dt)
+		self:SetupBones()
+	end
+
+	self:DrawModel()
+end
+
 local function GetPuppet(ply)
 	local puppet = puppets[ply]
 
@@ -17,6 +106,9 @@ local function GetPuppet(ply)
 		puppet = ClientsideModel(GONOME_MODEL, RENDERGROUP_OPAQUE)
 		if not IsValid(puppet) then return end
 
+		puppet.zs_Owner = ply
+		puppet.RenderOverride = PuppetRender
+		puppet:SetPos(ply:GetPos())
 		puppets[ply] = puppet
 	end
 
@@ -26,51 +118,6 @@ end
 local function RemovePuppet(ply)
 	if IsValid(puppets[ply]) then puppets[ply]:Remove() end
 	puppets[ply] = nil
-end
-
--- последовательность и ее время: разовые анимации (атака, вздрагивание) по времени начала, циклы - по CurTime
-local function PlaySeq(puppet, name, start, rate, loop)
-	local seq = puppet:LookupSequence(name)
-	if seq < 0 then return end
-
-	if puppet:GetSequence() ~= seq then puppet:ResetSequence(seq) end
-
-	local duration = math.max(puppet:SequenceDuration(seq), 0.01)
-	local t = (CurTime() - (start or 0)) * (rate or 1) / duration
-
-	puppet:SetCycle(loop and t % 1 or math.Clamp(t, 0, 1))
-	return duration / (rate or 1)
-end
-
-local function OneShotLeft(ply, key, seqName, puppet)
-	local start = ply:GetNWFloat(key, 0)
-	local seq = puppet:LookupSequence(seqName)
-	if seq < 0 or start <= 0 then return end
-
-	if CurTime() - start < puppet:SequenceDuration(seq) then return start end
-end
-
-local function Animate(ply, puppet)
-	local vel = ply:GetVelocity():Length2D()
-
-	local attackSeq = "attack" .. ply:GetNWInt("ZS_GonomeAttackSeq", 1)
-	local attackStart = OneShotLeft(ply, "ZS_GonomeAttack", attackSeq, puppet)
-	if attackStart then return PlaySeq(puppet, attackSeq, attackStart, 1.4) end
-
-	local flinchStart = OneShotLeft(ply, "ZS_GonomeFlinch", "small_flinch", puppet)
-	if flinchStart then return PlaySeq(puppet, "small_flinch", flinchStart) end
-
-	if not ply:OnGround() then
-		local seq = puppet:LookupSequence("jump1")
-		if puppet:GetSequence() ~= seq then puppet:ResetSequence(seq) end
-		puppet:SetCycle(0.35)
-		return
-	end
-
-	if vel > 150 then return PlaySeq(puppet, "runshort", 0, vel / 260, true) end
-	if vel > 10 then return PlaySeq(puppet, "walk", 0, math.max(vel / 90, 0.4), true) end
-
-	PlaySeq(puppet, "idle1", 0, 1, true)
 end
 
 hook.Add("Think", "ZS_BossPuppets", function()
@@ -87,11 +134,18 @@ hook.Add("Think", "ZS_BossPuppets", function()
 		-- свою модель в первом лице не рисуем
 		local firstPerson = ply == LocalPlayer() and GetViewEntity() == ply and not (hg_thirdperson and hg_thirdperson:GetBool())
 		puppet:SetNoDraw(firstPerson or ply:IsDormant())
-
-		puppet:SetPos(ply:GetPos())
-		puppet:SetAngles(Angle(0, ply:EyeAngles().y, 0))
-		Animate(ply, puppet)
 	end
+end)
+
+-- классическая камера от первого лица: от глаз игрока (высота гонома - его view offset), без камеры homigrad по кости
+hook.Add("HG_OverrideView", "ZS_BossView", function(ply, view)
+	if not ZS_IsBoss(ply) or not ply:Alive() or (hg_thirdperson and hg_thirdperson:GetBool()) then return end
+
+	view.origin = ply:EyePos()
+	view.angles = ply:EyeAngles()
+	view.drawviewer = false
+
+	return view
 end)
 
 -- появление босса
@@ -125,7 +179,7 @@ net.Receive("zs_boss_death", function()
 	local hookName = "ZS_BossCorpse" .. tostring(corpse)
 	hook.Add("Think", hookName, function()
 		if not IsValid(corpse) then hook.Remove("Think", hookName) return end
-		PlaySeq(corpse, name, start)
+		OneShotSeq(corpse, name, start)
 	end)
 
 	timer.Simple(20, function()

@@ -340,6 +340,9 @@ function UI.ToggleSkillTree()
 		return
 	end
 
+	-- у босса нет дерева навыков
+	if ZS_IsBoss(lply) then return end
+
 	local class = UI.GetClass()
 	if not class then return end
 

@@ -6,7 +6,6 @@ local MODE = MODE
 -- с отдельного запаса здоровья ZS_BossHP (здоровье игрока homigrad обрезает до 100). Клиент: cl_zs_boss.lua
 MODE.BossWave = 3
 MODE.BossHealth = 3000
-MODE.BossMeleeMul = 2
 
 util.AddNetworkString("zs_boss_rise")
 util.AddNetworkString("zs_boss_death")
@@ -27,10 +26,13 @@ function MODE:MakeBoss(ply)
 
 	if IsValid(ply.FakeRagdoll) and hg.FakeUp then hg.FakeUp(ply, true) end
 
+	-- отдельный вид (класс zs_gonome, sh_zs_zombie.lua): навыки и эффекты прежнего класса снимаются,
+	-- выбранный класс (ply.zs_Class) остается для следующего возрождения
+	ply:SetPlayerClass("zs_gonome")
+
 	ply:SetNWBool("ZS_Boss", true)
 	ply:SetNWInt("ZS_BossHP", self.BossHealth)
 	ply:SetNWInt("ZS_BossMaxHP", self.BossHealth)
-	ply:SetNWString("ZS_Visual", "")
 	ply:SetNWString("PlayerName", "Gonome " .. ply:Nick())
 
 	SetGlobalEntity("ZS_Boss", ply)
@@ -78,18 +80,13 @@ function ZS_BossDamage(ent, dmgInfo)
 	return true
 end
 
--- удары когтями: анимация атаки гонома и усиленный урон
+-- удары когтями: анимация атаки гонома (урон когтей x2 задан классом zs_gonome)
 hook.Add("ZS_ClawAttack", "ZS_Boss", function(ply, special)
 	if not ZS_IsBoss(ply) then return end
 
 	ply:SetNWFloat("ZS_GonomeAttack", CurTime())
 	ply:SetNWInt("ZS_GonomeAttackSeq", special and 2 or math.random(1, 2))
 	ply:EmitSound("vj_hlr/gsrc/npc/gonome/gonome_melee" .. math.random(2) .. ".wav", 85)
-end)
-
-hook.Add("PreHomigradDamage", "ZS_BossClaws", function(ent, dmgInfo)
-	local attacker = dmgInfo:GetAttacker()
-	if ZS_IsBoss(attacker) then dmgInfo:ScaleDamage(MODE.BossMeleeMul) end
 end)
 
 -- рычание раз в несколько секунд

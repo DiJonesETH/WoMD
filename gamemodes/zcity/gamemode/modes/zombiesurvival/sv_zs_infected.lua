@@ -118,7 +118,7 @@ end)
 net.Receive("zs_buyskill", function(len, ply)
 	local skillId = net.ReadString()
 
-	if not IsZSRound() or not ply.zs_Class then return end
+	if not IsZSRound() or not ply.zs_Class or ZS_IsBoss(ply) then return end
 
 	ply.zs_Skills = ply.zs_Skills or {}
 
@@ -136,7 +136,7 @@ end)
 net.Receive("zs_upgradeskill", function(len, ply)
 	local skillId = net.ReadString()
 
-	if not IsZSRound() or not ply.zs_Class then return end
+	if not IsZSRound() or not ply.zs_Class or ZS_IsBoss(ply) then return end
 
 	ply.zs_Skills = ply.zs_Skills or {}
 
