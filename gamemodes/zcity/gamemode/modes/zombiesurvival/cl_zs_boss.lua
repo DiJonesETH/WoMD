@@ -137,17 +137,6 @@ hook.Add("Think", "ZS_BossPuppets", function()
 	end
 end)
 
--- классическая камера от первого лица: от глаз игрока (высота гонома - его view offset), без камеры homigrad по кости
-hook.Add("HG_OverrideView", "ZS_BossView", function(ply, view)
-	if not ZS_IsBoss(ply) or not ply:Alive() or (hg_thirdperson and hg_thirdperson:GetBool()) then return end
-
-	view.origin = ply:EyePos()
-	view.angles = ply:EyeAngles()
-	view.drawviewer = false
-
-	return view
-end)
-
 -- появление босса
 local riseText, riseEnd = nil, 0
 

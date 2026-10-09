@@ -54,7 +54,7 @@ local clawClasses = {
 	["zs_bruiser"] = 0.8,
 	["zs_agile"] = 0.2,
 	["zs_metaboliser"] = 0.5,
-	["zs_gonome"] = 0.6
+	["zs_gonome"] = 1.0 -- медленнее громилы: тяжелые удары босса
 }
 
 -- зараженные Zombie Survival: когти со звуками ванильного зомби HL2

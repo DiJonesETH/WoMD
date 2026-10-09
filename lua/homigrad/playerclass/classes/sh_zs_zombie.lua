@@ -83,9 +83,10 @@ ZS_BOSS_CLASSES = {
 		key = "gonome",
 		name = "Gonome",
 		model = "", -- модель гонома рисует cl_zs_boss.lua (скелет HL1 не надевается через bonemerge)
-		viewModel = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModel,
-		viewModelFOV = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModelFOV,
-		viewModelHiddenBones = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModelHiddenBones,
+		-- руки от первого лица - как у agile
+		viewModel = ZS_ZOMBIE_CLASSES.zs_agile.viewModel,
+		viewModelFOV = ZS_ZOMBIE_CLASSES.zs_agile.viewModelFOV,
+		viewModelHiddenBones = ZS_ZOMBIE_CLASSES.zs_agile.viewModelHiddenBones,
 		sounds = {
 			steps = ZS_ZOMBIE_CLASSES.zs_bruiser.sounds.steps,
 			pain = {"vj_hlr/gsrc/npc/gonome/gonome_pain1.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain2.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain3.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain4.wav"},
@@ -98,7 +99,6 @@ ZS_BOSS_CLASSES = {
 		meleeMul = 2,
 		clawsName = "Gonome Claws",
 		boss = true,
-		viewOffset = Vector(0, 0, 76), -- гоном выше игрока
 	},
 }
 
@@ -167,8 +167,6 @@ for className, info in pairs(allClasses) do
 		end
 		self:SelectWeapon("weapon_hands_sh")
 
-		if info.viewOffset then self:SetViewOffset(info.viewOffset) end
-
 		-- эффекты навыков после того, как homigrad выставит хитбокс игрока при спавне (у босса навыков нет)
 		if info.boss then return end
 
@@ -181,8 +179,6 @@ for className, info in pairs(allClasses) do
 
 	function CLASS.Off(self)
 		if CLIENT then return end
-
-		if info.viewOffset then self:SetViewOffset(Vector(0, 0, 64)) end
 
 		self:SetMaterial("")
 		self:SetNWString("ZS_Visual", "")
