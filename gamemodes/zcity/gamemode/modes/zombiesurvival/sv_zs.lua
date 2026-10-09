@@ -422,7 +422,6 @@ function MODE:PlayerDeath(ply, inflictor, attacker)
 		for zombie in pairs(ply.zs_Attackers or {}) do
 			if IsValid(zombie) and ZS_IsZombie(zombie) then
 				self.Infected.AddPoints(zombie, self.PointsPerKill)
-				zombie:ChatPrint("+" .. self.PointsPerKill .. " points: " .. ply:Name() .. " killed")
 			end
 		end
 
@@ -435,7 +434,6 @@ function MODE:PlayerDeath(ply, inflictor, attacker)
 	elseif ply:Team() == TEAM_SURVIVORS then
 		ply:SetTeam(TEAM_INFECTED)
 
-		PrintMessage(HUD_PRINTTALK, ply:Name() .. " has been infected.")
 		zb.GiveRole(ply, "Infected", colInfected)
 	end
 end

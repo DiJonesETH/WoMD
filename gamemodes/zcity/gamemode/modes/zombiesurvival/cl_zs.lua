@@ -96,9 +96,9 @@ net.Receive("zs_roundend", function()
 	elseif winner == WINNER_NONE then
 		Announce("Round ended", colWhite)
 	elseif winner == TEAM_SURVIVORS then
-		Announce("Survivors held out through all " .. waves .. " waves!", colSurvivor)
+		Announce("We WILL win this! The survivors have passed all waves", colSurvivor)
 	else
-		Announce("The infection wins! Survivors fell on wave " .. wave .. "/" .. waves, colInfected)
+		Announce("There is no hope. All survivors are dead", colInfected)
 	end
 end)
 
@@ -158,7 +158,7 @@ local function DrawRoundInfo()
 	if lply:Alive() and lply:Team() == TEAM_SURVIVORS then
 		local py = y + h + ScreenScale(3)
 		draw.RoundedBox(6, x, py, w, ScreenScale(14), colBG)
-		draw.SimpleText("SURVIVOR POINTS: " .. lply:GetNWInt("ZS_SPoints", 0), "ZB_InterfaceMedium", x + ScreenScale(5), py + ScreenScale(7), colSurvivorPoints, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		draw.SimpleText("SP: " .. lply:GetNWInt("ZS_SPoints", 0), "ZB_InterfaceMedium", x + ScreenScale(5), py + ScreenScale(7), colSurvivorPoints, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
 	end
 end
 

@@ -61,5 +61,4 @@ function MODE:RewardZombieKill(ply, attacker)
 	if not killer or not killer:Alive() or killer:Team() ~= TEAM_SURVIVORS then return end
 
 	self.AddSurvivorPoints(killer, self.SurvivorKillPoints)
-	killer:ChatPrint("+" .. self.SurvivorKillPoints .. " survivor points: " .. ply:Name() .. " killed")
 end
