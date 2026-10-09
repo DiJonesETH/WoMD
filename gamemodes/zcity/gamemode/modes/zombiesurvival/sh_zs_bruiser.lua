@@ -135,7 +135,8 @@ local function PatchFake()
 
 	hg.ZS_OrigFake = hg.Fake
 	hg.Fake = function(ply, ...)
-		if IsValid(ply) and ply:IsPlayer() and ply:Alive() and ZS_HasSkill(ply, "strong_legs") then
+		-- крепкие ноги громилы и босс-гоном (sv_zs_boss.lua) не падают в регдолл
+		if IsValid(ply) and ply:IsPlayer() and ply:Alive() and (ZS_HasSkill(ply, "strong_legs") or ZS_IsBoss and ZS_IsBoss(ply)) then
 			return
 		end
 
@@ -187,6 +188,8 @@ local function PatchDamage()
 
 	hg.ZS_OrigDamageHook = orig
 	hg.ZS_DamageWrapper = function(ent, dmgInfo)
+		-- босс-гоном получает урон напрямую в здоровье, минуя организм (sv_zs_boss.lua)
+		if ZS_BossDamage and ZS_BossDamage(ent, dmgInfo) then return true end
 		if BulletImmune(ent, dmgInfo) then return true end
 		return hg.ZS_OrigDamageHook(ent, dmgInfo)
 	end

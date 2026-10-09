@@ -1577,6 +1577,7 @@ function SWEP:PrimaryAttack(forcespecial)
 	end
 
 	if SERVER then
+		if zsClawClasses[owner.PlayerClassName] then hook.Run("ZS_ClawAttack", owner, special_attack) end
 		self:AttackFront(special_attack, rand) -- this OwO
 	end
 

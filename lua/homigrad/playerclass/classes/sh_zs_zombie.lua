@@ -81,6 +81,11 @@ function ZS_IsZombie(ply)
 	return IsValid(ply) and ZS_ZOMBIE_CLASSES[ply.PlayerClassName] ~= nil
 end
 
+-- босс-гоном (gamemodes/zcity/gamemode/modes/zombiesurvival/sv_zs_boss.lua): зараженный с NWBool ZS_Boss
+function ZS_IsBoss(ply)
+	return IsValid(ply) and ply:IsPlayer() and ply:GetNWBool("ZS_Boss", false)
+end
+
 -- навыки дерева класса (режим Zombie Survival), синхронизируются через NWBool
 function ZS_HasSkill(ply, id)
 	return IsValid(ply) and ply:GetNWBool("ZS_Skill_" .. id, false)
