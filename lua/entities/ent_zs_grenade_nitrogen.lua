@@ -45,7 +45,8 @@ function ENT:Explode()
 	effect:SetRadius(self.CloudRadius)
 	util.Effect("eff_zs_nitrogen", effect, true, true)
 
-	sound.Play("ambient/gas/steam2.wav", pos, 80, 120)
+	-- одноразовое шипение (steam2.wav зациклен и не затихал бы)
+	sound.Play("npc/env_headcrabcanister/hiss.wav", pos, 80, 120)
 	sound.Play("physics/glass/glass_impact_bullet" .. math.random(4) .. ".wav", pos, 75, 80)
 
 	for _, ply in ipairs(ents.FindInSphere(pos, self.CloudRadius)) do

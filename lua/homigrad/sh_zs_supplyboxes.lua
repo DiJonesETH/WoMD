@@ -1,10 +1,87 @@
--- Ящики снабжения выживших режима Zombie Survival (выпадают из аирдропа):
--- предмет weapon_zs_box_* ставится на землю и превращается в zs_supply_box
-
 -- Постройки выживших режима Zombie Survival (выпадают из аирдропа как спецпредметы):
 -- предмет weapon_zs_box_* ставится на землю и превращается в энтити entity (по умолчанию zs_supply_box).
 -- Ящики снабжения открывают магазин, где выжившие тратят очки (SURVIVOR POINTS, sv_zs_survivors.lua).
 ZS_SUPPLY_BOXES = {
+	arsenal = {
+		name = "Arsenal Box",
+		model = "models/props/de_prodigy/ammo_can_01.mdl",
+		color = Color(255, 255, 255),
+		weapon = "weapon_zs_box_arsenal",
+		desc = "A shop with pistols, shotguns, rifles, melee weapons and ammo for survivor points",
+	},
+	medical = {
+		name = "Medical Box",
+		model = "models/Items/item_item_crate.mdl",
+		color = Color(220, 40, 40),
+		weapon = "weapon_zs_box_medical",
+		desc = "A shop with medical supplies for survivor points",
+	},
+	tech = {
+		name = "Tech Box",
+		model = "models/props/cs_militia/footlocker01_closed.mdl",
+		color = Color(240, 200, 30),
+		weapon = "weapon_zs_box_tech",
+		desc = "A shop with nails, electrodes, duct tape and tools for survivor points",
+	},
+	incinerator = {
+		name = "Corpse Incinerator",
+		model = "models/props_c17/oildrum001.mdl",
+		color = Color(200, 90, 40),
+		weapon = "weapon_zs_box_incinerator",
+		entity = "zs_incinerator",
+		desc = "A barrel for burning corpses. Fuel it with gas cylinders and canisters, then throw in two corpses: they burn for 100 seconds",
+	},
+}
+
+ZS_SUPPLY_BOX_RADIUS = 262 -- 5 метров: ближе такую же постройку поставить нельзя
+ZS_SHOP_DISTANCE = 150 -- дальше от ящика магазин закрывается
+
+ZS_MEDICAL_ITEMS = {
+	"weapon_medkit_sh",
+	"weapon_bandage_sh",
+	"weapon_bigbandage_sh",
+	"weapon_tourniquet",
+	"weapon_painkillers",
+	"weapon_bloodbag",
+	"weapon_morphine",
+	"weapon_adrenaline",
+}
+
+if SERVER then
+	-- сообщения о перезарядке/повторном использовании показываются игроку один раз за жизнь
+	function ZS_NotifyOnce(ply, key, text)
+		ply.zs_NotifiedOnce = ply.zs_NotifiedOnce or {}
+		if ply.zs_NotifiedOnce[key] then return end
+
+		ply.zs_NotifiedOnce[key] = true
+
+		if ply.Notify then ply:Notify(text, 0, "zs_" .. key, 3) else ply:ChatPrint(text) end
+	end
+
+	hook.Add("PlayerSpawn", "ZS_NotifyOnceReset", function(ply)
+		ply.zs_NotifiedOnce = nil
+	end)
+end
+
+-- можно ли поставить постройку этого типа в точку (нет такой же в радиусе 5 метров)
+function ZS_CanPlaceSupplyBox(boxType, pos)
+	local info = ZS_SUPPLY_BOXES[boxType]
+
+	for _, ent in ipairs(ents.FindByClass(info and info.entity or "zs_supply_box")) do
+		if ent:GetBoxType() == boxType and ent:GetPos():Distance(pos) < ZS_SUPPLY_BOX_RADIUS then
+			return false
+		end
+	end
+
+	return true
+end
+
+-- Магазины ящиков снабжения. Цены в очках выжившего: пассивно 1 очко в 2 секунды (~120 за волну с подготовкой),
+-- 50 очков за убийство зараженного. Вкладки оружия повторяют категории Q-меню Z-City (SWEP.Category).
+-- Вкладки оружия идут от дешевых к дорогим (стартовая цена растет сверху вниз), внутри вкладки цена растет слева направо.
+-- kind: weapon (по умолчанию) | armor | attachment (обвес att, выдается в инвентарь) | ammo_held (патроны к оружию в руках) | ammo (amount патронов типа ammo) | electrodes
+-- ammoPrice/ammoShells у категории: цена патронов к оружию из нее; ammoShells - сколько патронов дается вместо 2 магазинов
+ZS_SHOPS = {
 	arsenal = {
 		{name = "Melee", items = {
 			{class = "weapon_pocketknife", price = 40},
