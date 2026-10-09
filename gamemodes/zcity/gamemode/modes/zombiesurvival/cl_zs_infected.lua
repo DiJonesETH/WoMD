@@ -30,6 +30,39 @@ end
 
 local classMenu
 
+-- перенос текста по словам под ширину карточки (с учетом \n)
+local function WrapText(text, font, width)
+	surface.SetFont(font)
+
+	local lines = {}
+
+	for _, paragraph in ipairs(string.Explode("\n", text or "")) do
+		local line = ""
+
+		for _, word in ipairs(string.Explode(" ", paragraph)) do
+			local candidate = line == "" and word or (line .. " " .. word)
+
+			if surface.GetTextSize(candidate) > width and line ~= "" then
+				lines[#lines + 1] = line
+				line = word
+			else
+				line = candidate
+			end
+		end
+
+		lines[#lines + 1] = line
+	end
+
+	return lines
+end
+
+-- стартовый навык класса (auto = true в MODE.SkillTrees)
+local function StartingSkill(class)
+	for _, skill in pairs(MODE.SkillTrees[class] or {}) do
+		if skill.auto then return skill end
+	end
+end
+
 function UI.OpenClassMenu()
 	if IsValid(classMenu) then return end
 	if UI.GetClass() then return end
@@ -71,16 +104,28 @@ function UI.OpenClassMenu()
 
 			draw.SimpleText(info.name, "ZB_InterfaceMediumLarge", cw * 0.5, 36, info.color, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-			local lines = {
-				info.desc,
-				"",
-				"Speed: x" .. info.speed,
-				"Damage taken: x" .. info.damageTaken,
-				"Claw damage: x" .. info.meleeMul,
-			}
+			-- описание класса - описание его стартового (сразу изученного) навыка
+			if not self.DescLines then
+				local skill = StartingSkill(class)
+				self.SkillName = skill and skill.name
+				self.DescLines = WrapText(skill and skill.desc or info.desc, "ZB_InterfaceSmall", cw - 24)
+			end
 
-			for j, line in ipairs(lines) do
-				draw.SimpleText(line, "ZB_InterfaceSmall", cw * 0.5, 80 + j * 22, colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			local y = 80
+			if self.SkillName then
+				draw.SimpleText(self.SkillName, "ZB_InterfaceMedium", cw * 0.5, y, info.color, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				y = y + 30
+			end
+
+			for _, line in ipairs(self.DescLines) do
+				draw.SimpleText(line, "ZB_InterfaceSmall", cw * 0.5, y, colWhite, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				y = y + 22
+			end
+
+			y = y + 22
+			for _, line in ipairs({"Speed: x" .. info.speed, "Damage taken: x" .. info.damageTaken, "Claw damage: x" .. info.meleeMul}) do
+				draw.SimpleText(line, "ZB_InterfaceSmall", cw * 0.5, y, colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+				y = y + 22
 			end
 
 			draw.SimpleText("Click to choose", "ZB_InterfaceMedium", cw * 0.5, ch - 30, hovered and colWhite or colGray, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
@@ -108,31 +153,6 @@ local GRID_COLS, GRID_ROWS = 3, 5
 surface.CreateFont("ZS_SkillName", {font = "Roboto", size = math.max(ScreenScale(7), 16), weight = 700, extended = true})
 surface.CreateFont("ZS_SkillDesc", {font = "Roboto", size = math.max(ScreenScale(4.6), 12), weight = 500, extended = true})
 
--- перенос текста по словам под ширину карточки (с учетом \n)
-local function WrapText(text, font, width)
-	surface.SetFont(font)
-
-	local lines = {}
-
-	for _, paragraph in ipairs(string.Explode("\n", text or "")) do
-		local line = ""
-
-		for _, word in ipairs(string.Explode(" ", paragraph)) do
-			local candidate = line == "" and word or (line .. " " .. word)
-
-			if surface.GetTextSize(candidate) > width and line ~= "" then
-				lines[#lines + 1] = line
-				line = word
-			else
-				line = candidate
-			end
-		end
-
-		lines[#lines + 1] = line
-	end
-
-	return lines
-end
 local colLocked = Color(70, 70, 70)
 local colGold = Color(230, 180, 40)
 local colLine = Color(200, 200, 200, 90)
