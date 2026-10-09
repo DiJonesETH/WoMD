@@ -27,6 +27,9 @@ local musicStation
 local function PlayMusic(track)
 	if IsValid(musicStation) then musicStation:Stop() end
 
+	-- пустой трек - просто оборвать музыку
+	if track == "" then return end
+
 	sound.PlayFile("sound/zbattle/zs/" .. track .. ".mp3", "noplay", function(station)
 		if not IsValid(station) then return end
 
@@ -38,6 +41,12 @@ end
 
 net.Receive("zs_music", function()
 	PlayMusic(net.ReadString())
+end)
+
+-- последний выживший (sv_zs.lua, MODE:CheckLastMan)
+net.Receive("zs_lastman", function()
+	net.ReadEntity()
+	Announce("LAST MAN STANDING", colSurvivor)
 end)
 
 -- интро подраунда

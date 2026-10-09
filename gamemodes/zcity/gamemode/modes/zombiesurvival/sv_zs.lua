@@ -55,6 +55,7 @@ util.AddNetworkString("zs_phase")
 util.AddNetworkString("zs_roundend")
 util.AddNetworkString("zs_requestspawn")
 util.AddNetworkString("zs_music")
+util.AddNetworkString("zs_lastman")
 
 resource.AddFile("sound/zbattle/zs/lastwave.mp3")
 resource.AddFile("sound/zbattle/zs/roundstart.mp3")
@@ -435,7 +436,40 @@ function MODE:PlayerDeath(ply, inflictor, attacker)
 		ply:SetTeam(TEAM_INFECTED)
 
 		zb.GiveRole(ply, "Infected", colInfected)
+
+		-- последний выживший погиб: трек резко обрывается
+		if ply == self.saved.LastMan then
+			self.saved.LastMan = nil
+			PlayMusic("")
+		end
+
+		self:CheckLastMan()
 	end
+end
+
+-- LAST MAN STANDING: когда в живых остается один выживший - оповещение, LastManPoints очков и свой трек
+MODE.LastManPoints = 2500
+
+function MODE:CheckLastMan()
+	if self.saved.LastManDone or CountAliveSurvivors() ~= 1 then return end
+
+	local last
+	for _, ply in ipairs(team.GetPlayers(TEAM_SURVIVORS)) do
+		if ply:Alive() then last = ply break end
+	end
+
+	if not IsValid(last) then return end
+
+	self.saved.LastManDone = true
+	self.saved.LastMan = last
+
+	self.AddSurvivorPoints(last, self.LastManPoints)
+
+	net.Start("zs_lastman")
+		net.WriteEntity(last)
+	net.Broadcast()
+
+	PlayMusic("lastman")
 end
 
 -- регдолл погибшего зараженного удаляется через минуту
