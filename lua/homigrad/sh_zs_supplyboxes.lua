@@ -87,6 +87,7 @@ ZS_SUPPLY_BOXES = {
 			{id = "supressor5", kind = "attachment", att = "supressor5", price = 300},
 		}},
 		{name = "Special", ammoPrice = 40, items = {
+			{class = "weapon_zs_nitrogen_grenade", price = 250},
 			{class = "weapon_hg_bow", price = 300},
 			{class = "weapon_hg_crossbow", price = 500},
 		}},

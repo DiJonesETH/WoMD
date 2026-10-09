@@ -426,6 +426,7 @@ else
 	local colBlack = Color(12, 12, 12)
 	local colGray = Color(140, 140, 140)
 	local colGreen = Color(90, 200, 70)
+	local colFrozen = Color(150, 200, 255)
 	local vecNormal, vecBigArms = Vector(1, 1, 1), Vector(1.35, 1.35, 1.35)
 	local armBones = {
 		"ValveBiped.Bip01_L_UpperArm", "ValveBiped.Bip01_L_Forearm", "ValveBiped.Bip01_L_Hand",
@@ -471,7 +472,10 @@ else
 			visual:SetNoDraw(hide)
 
 			-- автолиз: гниющая черная плоть, фибродисплазия: костная серая
-			if ent:GetNWBool("ZS_Black", false) then
+			if ent:GetNWFloat("ZS_FrozenUntil", 0) > CurTime() then
+				-- заморожен азотной гранатой
+				visual:SetColor(colFrozen)
+			elseif ent:GetNWBool("ZS_Black", false) then
 				visual:SetColor(colBlack)
 			elseif ent:GetNWBool("ZS_Gray", false) then
 				visual:SetColor(colGray)
