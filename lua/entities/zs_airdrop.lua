@@ -1,7 +1,7 @@
 AddCSLuaFile()
 
 -- Аирдроп выживших (Zombie Survival): ящик медленно опускается на парашюте с красным сигнальным огнем,
--- каждый выживший по E получает свой личный лут (ZS_GiveAirdropLoot в режиме), через 2 минуты ящик исчезает
+-- каждый выживший по E выбирает предметы из своего личного лута (ZS_OpenAirdrop в режиме), через 2 минуты ящик исчезает
 ENT.Type = "anim"
 ENT.Base = "base_anim"
 ENT.PrintName = "Airdrop"
@@ -37,7 +37,6 @@ if SERVER then
 		end
 
 		self:SetDieTime(CurTime() + self.LifeTime)
-		self.Opened = {}
 
 		-- красный сигнальный огонь на ящике
 		local flare = ents.Create("env_flare")
@@ -99,21 +98,10 @@ if SERVER then
 	function ENT:Use(ply)
 		if not IsValid(ply) or not ply:IsPlayer() or not ply:Alive() or ply:Team() ~= 0 then return end
 
-		local id = ply:SteamID64() or ply:EntIndex()
-		if self.Opened[id] then
-			self.Warned = self.Warned or {}
-			if not self.Warned[id] then
-				self.Warned[id] = true
-				ply:ChatPrint("[Airdrop] You have already taken your cargo from this crate")
-			end
-			return
-		end
-
-		self.Opened[id] = true
 		self:EmitSound("items/ammocrate_open.wav", 70)
 
-		if ZS_GiveAirdropLoot then
-			ZS_GiveAirdropLoot(ply, self)
+		if ZS_OpenAirdrop then
+			ZS_OpenAirdrop(ply, self)
 		end
 	end
 

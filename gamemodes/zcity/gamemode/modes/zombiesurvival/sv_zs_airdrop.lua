@@ -1,9 +1,12 @@
 local MODE = MODE
 
 -- Аирдроп выживших: со второй волны в каждую подготовку с неба падает ящик (lua/entities/zs_airdrop.lua).
--- Каждый выживший получает из него свой лут: 3 предмета, первый с шансом 20% - специальный (ящик снабжения или трупосжигатель).
+-- Каждому выжившему ящик предлагает свои 3 предмета (первый с шансом 20% - специальный: ящик снабжения,
+-- трупосжигатель или турель). По E открывается окно, где игрок берет нужное, а ненужное оставляет.
 
 util.AddNetworkString("zs_airdrop")
+util.AddNetworkString("zs_airdrop_menu")
+util.AddNetworkString("zs_airdrop_take")
 
 MODE.AirdropFromWave = 2
 MODE.AirdropSkyOffset = 80
@@ -55,6 +58,10 @@ local lootCategories = {
 
 local specialItems = {"weapon_zs_box_arsenal", "weapon_zs_box_medical", "weapon_zs_box_tech", "weapon_zs_box_incinerator"}
 
+for _, id in ipairs(ZS_TURRET_ORDER or {}) do
+	specialItems[#specialItems + 1] = ZS_TURRETS[id].weapon
+end
+
 -- прогрессия 0..1: первый аирдроп (волна AirdropFromWave) -> последняя волна режима
 local function GetProgress()
 	local mode = CurrentRound()
@@ -90,48 +97,113 @@ local function ItemName(class)
 	return armorName or class
 end
 
-local function GiveLootItem(ply, crate, cat, class)
-	if cat.armor then
-		local ent = ents.Create("ent_armor_" .. class)
-		if IsValid(ent) then
-			ent:SetPos(crate:GetPos() + Vector(math.Rand(-20, 20), math.Rand(-20, 20), crate:OBBMaxs().z + 10))
-			ent:Spawn()
-		end
+-- выдача предмета из аирдропа; возвращает true или nil с причиной отказа
+local function GiveLootItem(ply, crate, item)
+	if item.armor then
+		local ent = ents.Create("ent_armor_" .. item.class)
+		if not IsValid(ent) then return nil, "Can't take this right now" end
 
-		return ItemName(class)
+		ent:SetPos(crate:GetPos() + Vector(math.Rand(-20, 20), math.Rand(-20, 20), crate:OBBMaxs().z + 10))
+		ent:Spawn()
+
+		return true
 	end
 
-	local wep = ply:Give(class)
+	if ply:HasWeapon(item.class) then return nil, "You already have this" end
 
-	if IsValid(wep) and wep:GetPrimaryAmmoType() >= 0 and wep:GetMaxClip1() > 0 then
+	local wep = ply:Give(item.class)
+	if not IsValid(wep) then return nil, "Can't take this right now" end
+
+	if wep:GetPrimaryAmmoType() >= 0 and wep:GetMaxClip1() > 0 then
 		ply:GiveAmmo(wep:GetMaxClip1() * 2, wep:GetPrimaryAmmoType(), true)
 	end
 
-	return ItemName(class)
+	return true
 end
 
-function ZS_GiveAirdropLoot(ply, crate)
+-- 3 предмета, которые ящик предлагает игроку
+local function RollLoot()
 	local mode = CurrentRound()
 	local progress = GetProgress()
-	local got = {}
-	local regular = 2
+	local items = {}
+	local regular = 3
 
-	-- слот специального предмета: ящик снабжения с шансом AirdropSpecialChance, иначе обычный предмет
+	-- слот специального предмета с шансом AirdropSpecialChance, иначе обычный предмет
 	if math.random(100) <= (mode and mode.AirdropSpecialChance or 20) then
 		local special = specialItems[math.random(#specialItems)]
-		ply:Give(special)
-		got[#got + 1] = ItemName(special)
-	else
-		regular = 3
+		items[#items + 1] = {class = special, name = ItemName(special), special = true}
+		regular = 2
 	end
 
 	for _ = 1, regular do
 		local cat = PickCategory(progress)
-		got[#got + 1] = GiveLootItem(ply, crate, cat, cat.items[math.random(#cat.items)])
+		local class = cat.items[math.random(#cat.items)]
+		items[#items + 1] = {class = class, name = ItemName(class), armor = cat.armor}
 	end
 
-	ply:ChatPrint("[Airdrop] Cargo: " .. table.concat(got, ", "))
+	return items
 end
+
+local function PlayerKey(ply)
+	return ply:SteamID64() or tostring(ply:EntIndex())
+end
+
+local function CanUseCrate(ply, crate)
+	return IsValid(ply) and ply:Alive() and ply:Team() == TEAM_SURVIVORS and IsValid(crate) and crate:GetClass() == "zs_airdrop"
+		and ply:GetPos():Distance(crate:GetPos()) <= ZS_SHOP_DISTANCE
+end
+
+local function SendMenu(ply, crate, items)
+	net.Start("zs_airdrop_menu")
+		net.WriteEntity(crate)
+		net.WriteUInt(#items, 4)
+
+		for _, item in ipairs(items) do
+			net.WriteString(item.class)
+			net.WriteString(item.name)
+			net.WriteBool(item.armor or false)
+			net.WriteBool(item.special or false)
+			net.WriteBool(item.taken or false)
+		end
+	net.Send(ply)
+end
+
+-- E на ящике: окно выбора; предметы игрока бросаются один раз и ждут его, пока ящик не исчезнет
+function ZS_OpenAirdrop(ply, crate)
+	if not CanUseCrate(ply, crate) then return end
+
+	crate.Offers = crate.Offers or {}
+
+	local key = PlayerKey(ply)
+	crate.Offers[key] = crate.Offers[key] or RollLoot()
+
+	SendMenu(ply, crate, crate.Offers[key])
+end
+
+net.Receive("zs_airdrop_take", function(len, ply)
+	local crate = net.ReadEntity()
+	local index = net.ReadUInt(4)
+
+	if (ply.zs_NextAirdropTake or 0) > CurTime() then return end
+	ply.zs_NextAirdropTake = CurTime() + 0.2
+
+	if not CanUseCrate(ply, crate) or not crate.Offers then return end
+
+	local items = crate.Offers[PlayerKey(ply)]
+	local item = items and items[index]
+	if not item or item.taken then return end
+
+	local ok, reason = GiveLootItem(ply, crate, item)
+	if not ok then
+		if ply.Notify then ply:Notify(reason, 0, "zs_airdrop", 3) else ply:ChatPrint(reason) end
+		return
+	end
+
+	item.taken = true
+	ply:EmitSound("items/ammo_pickup.wav", 60)
+
+	SendMenu(ply, crate, items)
+end)
 
 -- точка сброса: над случайной точкой карты, где сверху открытое небо
 local function GetCandidatePoints()

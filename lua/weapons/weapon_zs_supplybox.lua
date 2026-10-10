@@ -86,6 +86,7 @@ if SERVER then
 		local box = ents.Create(info and info.entity or "zs_supply_box")
 		if not IsValid(box) then return end
 		if box.SetBoxType then box:SetBoxType(wep.BoxType) end
+		box.ZSDeployer = ply
 		box:SetAngles(ang)
 		box:SetPos(pos)
 		box:Spawn()
