@@ -10,6 +10,9 @@ MODE.BossGrabCooldown = 30
 MODE.BossSpitCooldown = 10
 MODE.BossSpitDelay = 1.5
 
+-- гоном временно выключен: zb_gonome 1 включает его появление на BossWave (zb_begonome для теста работает всегда)
+local bossEnabled = CreateConVar("zb_gonome", "0", {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Zombie Survival: spawn the Gonome boss on the boss wave", 0, 1)
+
 -- модель, материалы и звуки гонома скачиваются клиентам при входе (без этого у них ERROR или пустота)
 resource.AddFile("models/vj_hlr/opfor/gonome.mdl")
 resource.AddFile("materials/models/hl_resurgence/opfor/zombie_gonome.vmt")
@@ -182,7 +185,7 @@ end)
 -- в начале BossWave боссом становится случайный живой зараженный (если живых нет - первый появившийся)
 hook.Add("ZS_WaveStart", "ZS_Boss", function(wave)
 	local mode = CurrentRound()
-	if not mode or mode.name ~= "zs" or wave ~= mode.BossWave or mode.saved.BossDone then return end
+	if not mode or mode.name ~= "zs" or wave ~= mode.BossWave or mode.saved.BossDone or not bossEnabled:GetBool() then return end
 
 	mode.saved.BossDone = true
 
@@ -201,7 +204,7 @@ end)
 
 hook.Add("PlayerSpawn", "ZS_BossPending", function(ply)
 	local mode = CurrentRound()
-	if not BossActive() or not mode.saved.BossPending then return end
+	if not BossActive() or not mode.saved.BossPending or not bossEnabled:GetBool() then return end
 
 	timer.Simple(0.5, function()
 		if IsValid(ply) and mode.saved.BossPending and ZS_IsZombie(ply) and mode:MakeBoss(ply) then

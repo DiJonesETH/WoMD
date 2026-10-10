@@ -419,7 +419,7 @@ if SERVER then
 	end)
 
 	-- оружие ближнего боя выживших (база weapon_melee) бьет зараженных сильнее
-	ZS_MELEE_VS_INFECTED = 2.5
+	ZS_MELEE_VS_INFECTED = 6
 
 	function ZS_MeleeMul(ply, dmgInfo)
 		local inflictor, attacker = dmgInfo:GetInflictor(), dmgInfo:GetAttacker()

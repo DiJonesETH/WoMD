@@ -54,7 +54,7 @@ function ENT:GetAimDir()
 	return Angle(self:GetAimPitch(), self:GetAngles().y, 0):Forward()
 end
 
--- грудь цели (зараженный или его регдолл)
+-- грудь цели (зараженный или NPC-зомби)
 local function ChestPos(ent)
 	local bone = ent:LookupBone("ValveBiped.Bip01_Spine2")
 	local pos = bone and ent:GetBonePosition(bone)
@@ -103,12 +103,26 @@ if SERVER then
 		return self
 	end
 
-	local function IsTargetable(ply)
-		return IsValid(ply) and ply:IsPlayer() and ply:Alive() and ZS_IsZombie and ZS_IsZombie(ply)
+	-- NPC-зомби (в т.ч. призванные зараженными) и хедкрабы
+	local zombieNPCs = {
+		npc_zombie = true, npc_zombie_torso = true, npc_fastzombie = true, npc_fastzombie_torso = true,
+		npc_poisonzombie = true, npc_zombine = true,
+		npc_headcrab = true, npc_headcrab_fast = true, npc_headcrab_black = true, npc_headcrab_poison = true,
+	}
+
+	-- цель: зараженный на ногах (лежащих в регдолле турель не трогает) или живой NPC-зомби
+	local function IsTargetable(ent)
+		if not IsValid(ent) then return false end
+
+		if ent:IsPlayer() then
+			return ent:Alive() and ZS_IsZombie and ZS_IsZombie(ent) and not IsValid(ent.FakeRagdoll)
+		end
+
+		return ent:IsNPC() and ent:Health() > 0 and (zombieNPCs[ent:GetClass()] or ent.zs_Owner ~= nil)
 	end
 
-	-- видна ли цель из ствола (первое, во что попадает луч - сам зараженный или его регдолл)
-	function ENT:CanSee(ply, body, chest)
+	-- видна ли цель из ствола (первое, во что попадает луч - сама цель)
+	function ENT:CanSee(target, chest)
 		local tr = util.TraceLine({
 			start = self:GetMuzzle(),
 			endpos = chest,
@@ -116,10 +130,7 @@ if SERVER then
 			mask = MASK_SHOT,
 		})
 
-		if not tr.Hit then return true end
-
-		local hit = tr.Entity
-		return hit == ply or hit == body or (IsValid(hit) and hg.RagdollOwner and hg.RagdollOwner(hit) == ply)
+		return not tr.Hit or tr.Entity == target
 	end
 
 	-- угол на точку относительно направления установки турели
@@ -129,25 +140,30 @@ if SERVER then
 	end
 
 	function ENT:FindTarget()
-		local best, bestBody, bestDist
+		local range = self:GetConfig().range
+		local best, bestDist
 
-		for _, ply in player.Iterator() do
-			if not IsTargetable(ply) then continue end
+		local candidates = player.GetAll()
+		for _, ent in ipairs(ents.FindInSphere(self:GetPos(), range)) do
+			if ent:IsNPC() then candidates[#candidates + 1] = ent end
+		end
 
-			local body = IsValid(ply.FakeRagdoll) and ply.FakeRagdoll or ply
-			local chest = ChestPos(body)
+		for _, ent in ipairs(candidates) do
+			if not IsTargetable(ent) then continue end
+
+			local chest = ChestPos(ent)
 			local dist = chest:DistToSqr(self:GetPos())
 
-			if dist <= self:GetConfig().range ^ 2 and (not bestDist or dist < bestDist) then
+			if dist <= range ^ 2 and (not bestDist or dist < bestDist) then
 				local yaw, pitch = self:RelativeAngles(chest)
 
-				if math.abs(yaw) <= self.Arc and math.abs(pitch) <= self.MaxPitch and self:CanSee(ply, body, chest) then
-					best, bestBody, bestDist = ply, body, dist
+				if math.abs(yaw) <= self.Arc and math.abs(pitch) <= self.MaxPitch and self:CanSee(ent, chest) then
+					best, bestDist = ent, dist
 				end
 			end
 		end
 
-		return best, bestBody
+		return best
 	end
 
 	function ENT:ServoSound(moving)
@@ -235,7 +251,7 @@ if SERVER then
 		local canWork = self:IsPowered() and not self:IsReloading() and self:GetAmmo() > 0
 
 		if not canWork then
-			self.Target, self.TargetBody = nil, nil
+			self.Target = nil
 			self:SetHasTarget(false)
 			self:ServoSound(false)
 			return true
@@ -245,16 +261,16 @@ if SERVER then
 
 		if self.NextSearch <= now then
 			self.NextSearch = now + 0.3
-			self.Target, self.TargetBody = self:FindTarget()
+			self.Target = self:FindTarget()
 			self:SetHasTarget(self.Target ~= nil)
 		end
 
 		-- без цели турель возвращается в исходное положение
 		local wantYaw, wantPitch = 0, 0
-		local target, body = self.Target, self.TargetBody
+		local target = self.Target
 
-		if IsTargetable(target) and IsValid(body) then
-			wantYaw, wantPitch = self:RelativeAngles(ChestPos(body))
+		if IsTargetable(target) then
+			wantYaw, wantPitch = self:RelativeAngles(ChestPos(target))
 			wantYaw = math.Clamp(wantYaw, -self.Arc, self.Arc)
 			wantPitch = math.Clamp(wantPitch, -self.MaxPitch, self.MaxPitch)
 		else
