@@ -9,10 +9,11 @@ ZS_TURRET_MODEL = "models/combine_turrets/floor_turret.mdl"
 ZS_TURRET_REPAIR_PRICE = 80 -- полная починка
 ZS_TURRET_BATTERY_PRICE = 60 -- полная зарядка аккумулятора
 
--- fireDelay - пауза между выстрелами (темп огня оружия-образца), cockDelay - через сколько после выстрела
+-- range - дальность в юнитах (1 м ~ 52.5), fireDelay - пауза между выстрелами (темп огня оружия-образца), cockDelay - через сколько после выстрела
 -- звучит взвод (дробовик, антиматериальная), ammo - имя патронов homigrad (урон и пробитие берутся из него)
 ZS_TURRETS = {
 	turret_smg = {
+		range = 525, -- 10 м
 		name = "SMG Turret",
 		ammo = "9x19 mm Parabellum",
 		maxAmmo = 250,
@@ -25,6 +26,7 @@ ZS_TURRETS = {
 		color = Color(120, 200, 255),
 	},
 	turret_shotgun = {
+		range = 525, -- 10 м
 		name = "Shotgun Turret",
 		ammo = "12/70 gauge",
 		maxAmmo = 60,
@@ -39,6 +41,7 @@ ZS_TURRETS = {
 		color = Color(255, 170, 80),
 	},
 	turret_rifle = {
+		range = 1050, -- 20 м
 		name = "Assault Turret",
 		ammo = "5.56x45 mm",
 		maxAmmo = 200,
@@ -51,6 +54,7 @@ ZS_TURRETS = {
 		color = Color(140, 230, 120),
 	},
 	turret_amr = {
+		range = 2625, -- 50 м
 		name = "Anti-Materiel Turret",
 		ammo = "12.7x108 mm",
 		maxAmmo = 20,

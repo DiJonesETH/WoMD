@@ -567,6 +567,29 @@ function MODE:ZB_JoinSpectators(ply)
 	if ply:Alive() then return true end
 end
 
+-- Во время подготовки зараженных нет: живые погибают в начале подготовки (и если как-то оказались живы позже),
+-- возродиться можно только когда начнется волна (TrySpawnZombie)
+local function KillInfected(mode)
+	for _, ply in player.Iterator() do
+		if ply:Alive() and ply:Team() == mode.TEAM_INFECTED and ZS_IsZombie(ply) then
+			ply:Kill()
+		end
+	end
+end
+
+hook.Add("ZS_PrepStart", "ZS_PrepKillInfected", function()
+	local mode = CurrentRound()
+	if mode and mode.name == "zs" then KillInfected(mode) end
+end)
+
+timer.Create("ZS_PrepKillInfected", 1, 0, function()
+	local mode = CurrentRound()
+	if zb.ROUND_STATE ~= 1 or not mode or mode.name ~= "zs" or not mode.saved.StartTime then return end
+
+	local _, active, _, finished = GetPhase(mode)
+	if not active and not finished then KillInfected(mode) end
+end)
+
 -- zb_skipwave: пропустить текущую волну (с ее подготовкой), следующая начнется с подготовки
 concommand.Add("zb_skipwave", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end

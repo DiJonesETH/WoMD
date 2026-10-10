@@ -12,7 +12,6 @@ ENT.RenderGroup = RENDERGROUP_BOTH -- непрозрачная модель и �
 
 ENT.MaxHealth = 400
 ENT.MaxBattery = 100
-ENT.Range = 2500
 ENT.Arc = 90 -- половина сектора обстрела
 ENT.TurnSpeed = 70 -- градусов в секунду по горизонтали
 ENT.PitchSpeed = 50
@@ -139,7 +138,7 @@ if SERVER then
 			local chest = ChestPos(body)
 			local dist = chest:DistToSqr(self:GetPos())
 
-			if dist <= self.Range ^ 2 and (not bestDist or dist < bestDist) then
+			if dist <= self:GetConfig().range ^ 2 and (not bestDist or dist < bestDist) then
 				local yaw, pitch = self:RelativeAngles(chest)
 
 				if math.abs(yaw) <= self.Arc and math.abs(pitch) <= self.MaxPitch and self:CanSee(ply, body, chest) then
@@ -414,7 +413,7 @@ function ENT:DrawTranslucent()
 	local start = self:GetMuzzle()
 	local tr = util.TraceLine({
 		start = start,
-		endpos = start + self:GetAimDir() * self.Range,
+		endpos = start + self:GetAimDir() * self:GetConfig().range,
 		filter = self,
 		mask = MASK_SHOT,
 	})
