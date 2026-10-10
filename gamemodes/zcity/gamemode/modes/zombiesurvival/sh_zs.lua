@@ -28,8 +28,8 @@ function MODE:GetWaveInfo()
 	return GetGlobalInt("ZS_Wave", 0), GetGlobalInt("ZS_Waves", 0), GetGlobalBool("ZS_WaveActive", false), GetGlobalFloat("ZS_PhaseEnd", 0)
 end
 
-MODE.PointsPerDamage = 1 -- очков за 1 хп урона по стоящему выжившему
-MODE.PointsPerCorpse = 200 -- очков за съеденный труп
+MODE.PointsPerDamage = 0.5 -- очков за 1 хп урона по стоящему выжившему
+MODE.PointsPerCorpse = 100 -- очков за съеденный труп
 MODE.EatTime = 6
 MODE.EatDistance = 90
 MODE.SkeletonModel = "models/player/skeleton.mdl"
@@ -182,8 +182,8 @@ MODE.SkillTrees = {
 		},
 		autolysis = {
 			name = "Autolysis",
-			desc = "The infected's organism becomes extremely exhausted and shrinks several times over.\n+ You become 2 times smaller, and your rotting flesh makes you harder to see in the dark",
-			short = "half size, black flesh",
+			desc = "The infected's organism becomes extremely exhausted and shrinks.\n+ You become a quarter smaller, and your rotting flesh makes you harder to see in the dark",
+			short = "3/4 size, black flesh",
 			cost = 600,
 			branch = "right",
 			requires = {"foot_growths"},

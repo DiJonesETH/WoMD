@@ -59,6 +59,7 @@ util.AddNetworkString("zs_lastman")
 
 resource.AddFile("sound/zbattle/zs/lastwave.mp3")
 resource.AddFile("sound/zbattle/zs/roundstart.mp3")
+resource.AddFile("sound/zbattle/zs/lastman.mp3")
 
 -- музыка на последней волне: 1 - включать, 0 - нет
 local lastWaveMusic = CreateConVar("zb_lastwavemusic", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Zombie Survival: play music during the last wave (1/0)", 0, 1)
@@ -523,8 +524,19 @@ local function TrySpawnZombie(mode, ply, nest)
 	if not active or finished then return end
 	if (ply.zs_NextSpawn or 0) > CurTime() then return end
 
+	-- гнездо выпускает по одному зараженному за раз (ENT.SpawnCooldown, zs_nest.lua)
+	if IsValid(nest) and not nest:CanSpawn() then
+		if (ply.zs_NextNestMsg or 0) < CurTime() then
+			ply.zs_NextNestMsg = CurTime() + 2
+			ply:ChatPrint("The nest is busy, wait a moment")
+		end
+		return
+	end
+
 	-- класс выбирается один раз на весь подраунд
 	if not mode.Infected.EnsureClass(ply) then return end
+
+	if IsValid(nest) then nest:OnSpawned() end
 
 	SpawnZombie(mode, ply, nest)
 end

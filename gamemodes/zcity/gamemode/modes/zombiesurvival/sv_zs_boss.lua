@@ -10,6 +10,16 @@ MODE.BossGrabCooldown = 30
 MODE.BossSpitCooldown = 10
 MODE.BossSpitDelay = 1.5
 
+-- модель, материалы и звуки гонома скачиваются клиентам при входе (без этого у них ERROR или пустота)
+resource.AddFile("models/vj_hlr/opfor/gonome.mdl")
+resource.AddFile("materials/models/hl_resurgence/opfor/zombie_gonome.vmt")
+resource.AddFile("materials/models/hl_resurgence/opfor/zombie_gonome_head.vmt")
+resource.AddSingleFile("materials/models/hl_resurgence/opfor/zombie_gonome_g.vtf")
+
+for _, name in ipairs(file.Find("sound/vj_hlr/gsrc/npc/gonome/*.wav", "GAME")) do
+	resource.AddSingleFile("sound/vj_hlr/gsrc/npc/gonome/" .. name)
+end
+
 util.AddNetworkString("zs_boss_rise")
 util.AddNetworkString("zs_boss_death")
 
@@ -61,7 +71,7 @@ function ZS_BossDamage(ent, dmgInfo)
 		return true
 	end
 
-	local damage = dmgInfo:GetDamage()
+	local damage = dmgInfo:GetDamage() * (ZS_MeleeMul and ZS_MeleeMul(ent, dmgInfo) or 1)
 	if damage <= 0 then return true end
 
 	if IsValid(attacker) and attacker:IsPlayer() and attacker:Team() == TEAM_SURVIVORS then

@@ -21,6 +21,34 @@ ZSB.RepairPerHit = 10
 ZSB.WeldTime = 3 -- секунд на одну точку сварки
 ZSB.WelderElectrodes = 10 -- электродов в комплекте со сварочным аппаратом
 ZSB.MaxElectrodes = 40
+
+-- тип патронов "Electrodes" (модель - коробка арбалетных болтов HL2): добавляется в таблицы homigrad
+-- (sh_ammostuff.lua), его addAmmoTypes в хуке Initialize регистрирует тип и сущность ent_ammo_electrodes
+if hg and hg.ammotypes and hg.ammoents and not hg.ammotypes.electrodes then
+	hg.ammotypes.electrodes = {
+		name = "Electrodes",
+		dmgtype = DMG_BULLET,
+		tracer = TRACER_LINE,
+		plydmg = 0,
+		npcdmg = 0,
+		force = 0,
+		maxcarry = ZSB.MaxElectrodes,
+		minsplash = 10,
+		maxsplash = 5,
+	}
+
+	hg.ammoents.electrodes = {
+		Icon = "vgui/hud/hmcd_crossbow_bolt",
+		Model = "models/Items/CrossbowRounds.mdl",
+		Count = 5,
+	}
+
+	if hg.ammotypeshuy then
+		local copy = table.Copy(hg.ammotypes.electrodes)
+		copy.name = "electrodes"
+		hg.ammotypeshuy.Electrodes = copy
+	end
+end
 ZSB.RepairInterval = 0.5 -- починка сваркой: RepairPerHit здоровья раз в RepairInterval секунд
 ZSB.PropHealthMax = 2500
 
@@ -46,9 +74,11 @@ function ZSB.GetMaxRepairs(ent)
 	return ZSB.GetMaxHealth(ent) * ZSB.RepairCapacity
 end
 
--- электроды сварочного аппарата
+-- электроды сварочного аппарата - обычные патроны "Electrodes" (sh_ammostuff.lua): их можно выбросить и подобрать
+ZSB.ElectrodeAmmo = "Electrodes"
+
 function ZSB.GetElectrodes(ply)
-	return ply:GetNW2Int("ZS_Electrodes", 0)
+	return ply:GetAmmoCount(ZSB.ElectrodeAmmo)
 end
 
 function ZSB.IsGhosting(ply)
@@ -90,7 +120,7 @@ if SERVER then
 	ZSB.Active = Active
 
 	function ZSB.SetElectrodes(ply, n)
-		ply:SetNW2Int("ZS_Electrodes", math.Clamp(math.floor(n), 0, ZSB.MaxElectrodes))
+		ply:SetAmmo(math.Clamp(math.floor(n), 0, ZSB.MaxElectrodes), ZSB.ElectrodeAmmo)
 	end
 
 	function ZSB.GiveElectrodes(ply, n)
@@ -373,10 +403,6 @@ if SERVER then
 		ZSB.SetGhosting(ply, false)
 	end)
 
-	-- электроды пропадают со смертью
-	hook.Add("PostPlayerDeath", "ZS_Electrodes", function(ply)
-		ZSB.SetElectrodes(ply, 0)
-	end)
 else
 	local colBack = Color(0, 0, 0, 180)
 	local colRepairs = Color(100, 170, 215)

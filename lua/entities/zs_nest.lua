@@ -14,6 +14,7 @@ ENT.MaxHealth = 400
 ENT.HeightScale = 0.38
 ENT.HalfWidth = 46
 ENT.HalfHeight = 18
+ENT.SpawnCooldown = 2 -- из гнезда выходит один зараженный раз в SpawnCooldown секунд
 
 if SERVER then
 	function ENT:Initialize()
@@ -28,6 +29,8 @@ if SERVER then
 		self:SetCollisionBounds(mins, maxs)
 		self:SetMoveType(MOVETYPE_NONE)
 		self:SetSolid(SOLID_BBOX)
+		-- игроки проходят сквозь гнездо (зараженные появляются прямо в нем), пули и удары по нему попадают
+		self:SetCollisionGroup(COLLISION_GROUP_WEAPON)
 
 		local phys = self:GetPhysicsObject()
 		if IsValid(phys) then phys:EnableMotion(false) end
@@ -36,20 +39,17 @@ if SERVER then
 		self:SetMaxHealth(self.MaxHealth)
 	end
 
-	-- точка появления зараженного рядом с гнездом
+	-- зараженный появляется ровно в точке, где поставлено гнездо (на земле под его центром)
 	function ENT:GetSpawnPos()
-		local ang = math.Rand(0, 360)
-		local offset = Angle(0, ang, 0):Forward() * (self.HalfWidth + 24)
+		return self:GetPos() - Vector(0, 0, self.HalfHeight - 4)
+	end
 
-		local tr = util.TraceHull({
-			start = self:GetPos() + offset + Vector(0, 0, 40),
-			endpos = self:GetPos() + offset - Vector(0, 0, 80),
-			mins = Vector(-10, -10, 0),
-			maxs = Vector(10, 10, 10),
-			filter = self,
-		})
+	function ENT:CanSpawn()
+		return (self.zs_NextSpawn or 0) <= CurTime()
+	end
 
-		return tr.HitPos + Vector(0, 0, 4)
+	function ENT:OnSpawned()
+		self.zs_NextSpawn = CurTime() + self.SpawnCooldown
 	end
 
 	function ENT:OnTakeDamage(dmg)

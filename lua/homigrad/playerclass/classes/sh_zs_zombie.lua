@@ -160,6 +160,7 @@ for className, info in pairs(allClasses) do
 		self:SetNWString("ZS_Visual", info.model)
 
 		self.MeleeDamageMul = info.meleeMul
+		self.StaminaExhaustMul = 0 -- зараженные не устают (стамина держится полной в Think)
 
 		hg.SetArmorRestrictions(self, {all = true})
 
@@ -190,6 +191,7 @@ for className, info in pairs(allClasses) do
 		self:SetMaterial("")
 		self:SetNWString("ZS_Visual", "")
 		self.MeleeDamageMul = nil
+		self.StaminaExhaustMul = nil
 
 		hook.Run("ZS_ClearSkillEffects", self)
 
@@ -217,8 +219,11 @@ for className, info in pairs(allClasses) do
 		local org = self.organism
 		if not org then return end
 
+		if not org.stamina then return end
+
 		org.stamina["max"] = self.zs_StaminaMax or 200
 		org.stamina["range"] = self.zs_StaminaMax or 200
+		org.stamina[1] = org.stamina["max"]
 
 		if org.consciousness <= 0.3 then
 			org.consciousness = 1
@@ -413,12 +418,23 @@ if SERVER then
 		ragdoll:SetNWBool("ZS_BigArms", ply:GetNWBool("ZS_BigArms", false))
 	end)
 
+	-- оружие ближнего боя выживших (база weapon_melee) бьет зараженных сильнее
+	ZS_MELEE_VS_INFECTED = 2.5
+
+	function ZS_MeleeMul(ply, dmgInfo)
+		local inflictor, attacker = dmgInfo:GetInflictor(), dmgInfo:GetAttacker()
+		if not IsValid(inflictor) or not inflictor.ismelee2 then return 1 end
+		if IsValid(attacker) and attacker:IsPlayer() and ZS_IsZombie(attacker) then return 1 end
+
+		return ZS_MELEE_VS_INFECTED
+	end
+
 	-- живучесть класса
 	hook.Add("PreHomigradDamage", "ZS_ZombieDamageTaken", function(ent, dmgInfo)
 		local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
 		if not ZS_IsZombie(ply) then return end
 
-		dmgInfo:ScaleDamage(ZS_ClassInfo(ply.PlayerClassName).damageTaken * (ply.zs_DamageTakenMul or 1))
+		dmgInfo:ScaleDamage(ZS_ClassInfo(ply.PlayerClassName).damageTaken * (ply.zs_DamageTakenMul or 1) * ZS_MeleeMul(ply, dmgInfo))
 	end)
 
 	local function HealOrganism(org, amount)

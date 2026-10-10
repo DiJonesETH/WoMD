@@ -7,7 +7,7 @@ local TEAM_SURVIVORS = 0
 local DEFAULT_HULL_MINS, DEFAULT_HULL_MAXS = Vector(-10, -10, 0), Vector(10, 10, 72)
 local DEFAULT_DUCK_MINS, DEFAULT_DUCK_MAXS = Vector(-10, -10, 0), Vector(10, 10, 36)
 local DEFAULT_VIEW, DEFAULT_VIEW_DUCKED = Vector(0, 0, 64), Vector(0, 0, 38)
-local AUTOLYSIS_SCALE = 0.5
+local AUTOLYSIS_SCALE = 0.75
 
 local function IsLivingZombie(ply)
 	return IsValid(ply) and ply:IsPlayer() and ply:Alive() and ZS_IsZombie(ply)

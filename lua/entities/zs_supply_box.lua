@@ -107,7 +107,7 @@ if SERVER then
 			local b = ZS_BARRICADE
 			if b.GetElectrodes(ply) >= b.MaxElectrodes then return nil, "You can't carry more electrodes" end
 
-			b.GiveElectrodes(ply, item.amount)
+			ply:GiveAmmo(item.amount, b.ElectrodeAmmo, true)
 			return item.price
 		end,
 	}

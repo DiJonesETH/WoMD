@@ -157,8 +157,9 @@ end)
 MODE.ZombieBleedChance = 20
 MODE.ZombieBleedMul = 1 -- сила кровотечения от удара когтями (доля урона)
 MODE.DownedDamageMul = 4
-MODE.PointsPerKill = 200
-MODE.PassivePoints = 1 -- очков в секунду каждому зараженному
+MODE.PointsPerKill = 100
+MODE.PassivePoints = 1 -- очков каждому зараженному раз в PassivePointsInterval секунд
+MODE.PassivePointsInterval = 3
 
 local function ZombieHitOnSurvivor(ent, dmgInfo)
 	if zb.ROUND_STATE ~= 1 then return end
@@ -215,7 +216,7 @@ function MODE:HomigradDamage(ent, dmgInfo)
 	if attacker then victim.zs_ClawBleed = nil end
 end
 
-timer.Create("ZS_PassivePoints", 1, 0, function()
+timer.Create("ZS_PassivePoints", MODE.PassivePointsInterval, 0, function()
 	local mode = CurrentRound()
 	if zb.ROUND_STATE ~= 1 or not mode or mode.name ~= "zs" or not mode.saved.StartTime then return end
 

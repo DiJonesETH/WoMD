@@ -4,6 +4,8 @@
 -- выбираются по движению и действиям игрока.
 
 local GONOME_MODEL = "models/vj_hlr/opfor/gonome.mdl"
+-- если модель гонома не скачалась (нет FastDL/подписки на аддон), вместо пустоты на игроке видна модель зомби-солдата
+local FALLBACK_MODEL = "models/player/zombie_soldier.mdl"
 local colBoss = Color(200, 170, 40)
 local colBar = Color(200, 40, 30)
 local colBack = Color(0, 0, 0, 200)
@@ -102,8 +104,23 @@ local function PuppetRender(self)
 	self:DrawModel()
 end
 
+local function FallbackRender(self)
+	self:DrawModel()
+end
+
 local function GetPuppet(ply)
 	local puppet = puppets[ply]
+
+	if not IsValid(puppet) and not util.IsValidModel(GONOME_MODEL) then
+		puppet = ClientsideModel(FALLBACK_MODEL, RENDERGROUP_OPAQUE)
+		if not IsValid(puppet) then return end
+
+		puppet.zs_Owner = ply
+		puppet:SetParent(ply)
+		puppet:AddEffects(EF_BONEMERGE)
+		puppet.RenderOverride = FallbackRender
+		puppets[ply] = puppet
+	end
 
 	if not IsValid(puppet) then
 		puppet = ClientsideModel(GONOME_MODEL, RENDERGROUP_OPAQUE)
@@ -158,6 +175,7 @@ local deathSeqs = {"diebackward", "dieforward", "diesimple"}
 
 net.Receive("zs_boss_death", function()
 	local pos, yaw = net.ReadVector(), net.ReadFloat()
+	if not util.IsValidModel(GONOME_MODEL) then return end
 
 	local corpse = ClientsideModel(GONOME_MODEL, RENDERGROUP_OPAQUE)
 	if not IsValid(corpse) then return end
