@@ -63,7 +63,7 @@ resource.AddFile("sound/zbattle/zs/lastman.mp3")
 
 -- музыка на последней волне: 1 - включать, 0 - нет
 local lastWaveMusic = CreateConVar("zb_lastwavemusic", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Zombie Survival: play music during the last wave (1/0)", 0, 1)
-MODE.LastWaveMusicDelay = 63 -- секунда подготовки последней волны, на которой стартует трек (1:03)
+MODE.LastWaveMusicDelay = 37 -- секунда подготовки последней волны, на которой стартует трек
 
 local function PlayMusic(track)
 	net.Start("zs_music")
@@ -262,6 +262,11 @@ local function SetupInfectedSpectator(ply)
 
 	zb.GiveRole(ply, "Infected", colInfected)
 end
+
+-- для админских команд (sv_zs_admin.lua)
+function MODE:SetupSurvivor(ply) SetupSurvivor(ply) end
+function MODE:SetupInfectedSpectator(ply) SetupInfectedSpectator(ply) end
+function MODE:SpawnZombie(ply) SpawnZombie(self, ply) end
 
 function MODE:Intermission()
 	game.CleanUpMap()

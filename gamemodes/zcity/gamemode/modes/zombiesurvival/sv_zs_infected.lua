@@ -40,6 +40,8 @@ local function GrantSkill(ply, id)
 	SendSkills(ply)
 end
 
+Infected.SendSkills = SendSkills
+
 function Infected.ClearSkills(ply)
 	for id in pairs(MODE:GetAllSkillIds()) do
 		ply:SetNWBool("ZS_Skill_" .. id, false)
