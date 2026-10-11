@@ -21,7 +21,7 @@ MODE.InfectedAtStart = 2
 MODE.ZombieRespawnDelay = 5
 MODE.ZombieCorpseLifeTime = 60 -- через сколько секунд исчезает труп зараженного
 MODE.PistolChance = 15
-MODE.WelderChance = 35 -- шанс получить сварочный аппарат на старте (один выживший получает его всегда)
+MODE.StartWelders = 2 -- сколько выживших (случайных) получают сварочный аппарат на старте
 
 local TEAM_SURVIVORS = 0
 local TEAM_INFECTED = 1
@@ -63,7 +63,7 @@ resource.AddFile("sound/zbattle/zs/lastman.mp3")
 
 -- музыка на последней волне: 1 - включать, 0 - нет
 local lastWaveMusic = CreateConVar("zb_lastwavemusic", "1", {FCVAR_ARCHIVE, FCVAR_REPLICATED}, "Zombie Survival: play music during the last wave (1/0)", 0, 1)
-MODE.LastWaveMusicDelay = 3 -- секунда подготовки последней волны, на которой стартует трек
+MODE.LastWaveMusicDelay = 63 -- секунда подготовки последней волны, на которой стартует трек (1:03)
 
 local function PlayMusic(track)
 	net.Start("zs_music")
@@ -104,22 +104,37 @@ local function SetPhaseGlobals(wave, waves, active, phaseEnd)
 	SetGlobalFloat("ZS_PhaseEnd", phaseEnd)
 end
 
--- Таймлайн: [подготовка, волна] x N. Возвращает номер волны, идёт ли волна, время конца фазы и закончились ли все волны.
+-- Таймлайн: [подготовка, волна] x N, первая подготовка длиннее остальных (FirstPrepTime и PrepTime).
+local function PrepLength(mode, wave)
+	return wave == 1 and mode.FirstPrepTime or mode.PrepTime
+end
+
+-- сколько секунд от старта до начала подготовки волны wave
+local function WaveOffset(mode, wave)
+	if wave <= 1 then return 0 end
+	return mode.FirstPrepTime + mode.WaveTime + (wave - 2) * (mode.PrepTime + mode.WaveTime)
+end
+
+-- Возвращает номер волны, идёт ли волна, время конца фазы и закончились ли все волны.
 local function GetPhase(mode)
 	local data = mode.saved
 	if not data.StartTime then return 0, false, 0, false end
 
-	local period = mode.PrepTime + mode.WaveTime
 	local elapsed = CurTime() - data.StartTime
 
-	if elapsed >= data.Waves * period then
+	if elapsed >= WaveOffset(mode, data.Waves + 1) then
 		return data.Waves, false, 0, true
 	end
 
-	local wave = math.floor(elapsed / period) + 1
-	local waveStart = data.StartTime + (wave - 1) * period
-	local active = CurTime() >= waveStart + mode.PrepTime
-	local phaseEnd = waveStart + (active and period or mode.PrepTime)
+	local wave = 1
+	if elapsed >= WaveOffset(mode, 2) then
+		wave = 2 + math.floor((elapsed - WaveOffset(mode, 2)) / (mode.PrepTime + mode.WaveTime))
+	end
+
+	local waveStart = data.StartTime + WaveOffset(mode, wave)
+	local prepEnd = waveStart + PrepLength(mode, wave)
+	local active = CurTime() >= prepEnd
+	local phaseEnd = active and prepEnd + mode.WaveTime or prepEnd
 
 	return wave, active, phaseEnd, false
 end
@@ -263,7 +278,7 @@ function MODE:Intermission()
 	self.Type = CROUND
 
 	local waves = self.Types[self.Type].Waves
-	local total = waves * (self.PrepTime + self.WaveTime)
+	local total = WaveOffset(self, waves + 1)
 
 	self.saved.Waves = waves
 	self.saved.StartTime = nil
@@ -298,7 +313,7 @@ function MODE:GiveEquipment()
 
 	local infectedCount = math.Clamp(self.InfectedAtStart, 0, math.max(#players - 1, 0))
 
-	local welderGiven = false
+	local welders = 0
 
 	for i, ply in ipairs(players) do
 		if i <= infectedCount then
@@ -307,8 +322,8 @@ function MODE:GiveEquipment()
 			SetupSurvivor(ply)
 
 			-- сварочный аппарат для баррикад (sh_zs_barricade.lua)
-			if not welderGiven or math.random(100) <= self.WelderChance then
-				welderGiven = true
+			if welders < self.StartWelders then
+				welders = welders + 1
 				ply:Give("weapon_zs_arcwelder")
 				ZS_BARRICADE.SetElectrodes(ply, ZS_BARRICADE.WelderElectrodes)
 			end
@@ -332,7 +347,7 @@ local function UpdatePhase(mode, force)
 	else
 		hook.Run("ZS_PrepStart", wave)
 
-		-- трек последней волны стартует на 3-й секунде ее подготовки
+		-- трек последней волны стартует на LastWaveMusicDelay секунде ее подготовки
 		if wave == mode.saved.Waves and lastWaveMusic:GetBool() then
 			timer.Create("ZS_LastWaveMusic", mode.LastWaveMusicDelay, 1, function()
 				if zb.ROUND_STATE == 1 and CurrentRound() == mode then
@@ -524,8 +539,17 @@ local function TrySpawnZombie(mode, ply, nest)
 	if not active or finished then return end
 	if (ply.zs_NextSpawn or 0) > CurTime() then return end
 
+	-- игрок, ждущий занятое гнездо, остается в очереди к нему: повторные нажатия E приходят уже без гнезда
+	-- (E в наблюдателе переключает камеру), но он все равно появится именно в гнезде
+	if not IsValid(nest) and IsValid(ply.zs_WaitNest) and (ply.zs_WaitNestUntil or 0) > CurTime() then
+		nest = ply.zs_WaitNest
+	end
+
 	-- гнездо выпускает по одному зараженному за раз (ENT.SpawnCooldown, zs_nest.lua)
 	if IsValid(nest) and not nest:CanSpawn() then
+		ply.zs_WaitNest = nest
+		ply.zs_WaitNestUntil = CurTime() + 15
+
 		if (ply.zs_NextNestMsg or 0) < CurTime() then
 			ply.zs_NextNestMsg = CurTime() + 2
 			ply:ChatPrint("The nest is busy, wait a moment")
@@ -537,6 +561,7 @@ local function TrySpawnZombie(mode, ply, nest)
 	if not mode.Infected.EnsureClass(ply) then return end
 
 	if IsValid(nest) then nest:OnSpawned() end
+	ply.zs_WaitNest = nil
 
 	SpawnZombie(mode, ply, nest)
 end
@@ -567,29 +592,6 @@ function MODE:ZB_JoinSpectators(ply)
 	if ply:Alive() then return true end
 end
 
--- Во время подготовки зараженных нет: живые погибают в начале подготовки (и если как-то оказались живы позже),
--- возродиться можно только когда начнется волна (TrySpawnZombie)
-local function KillInfected(mode)
-	for _, ply in player.Iterator() do
-		if ply:Alive() and ply:Team() == mode.TEAM_INFECTED and ZS_IsZombie(ply) then
-			ply:Kill()
-		end
-	end
-end
-
-hook.Add("ZS_PrepStart", "ZS_PrepKillInfected", function()
-	local mode = CurrentRound()
-	if mode and mode.name == "zs" then KillInfected(mode) end
-end)
-
-timer.Create("ZS_PrepKillInfected", 1, 0, function()
-	local mode = CurrentRound()
-	if zb.ROUND_STATE ~= 1 or not mode or mode.name ~= "zs" or not mode.saved.StartTime then return end
-
-	local _, active, _, finished = GetPhase(mode)
-	if not active and not finished then KillInfected(mode) end
-end)
-
 -- zb_skipwave: пропустить текущую волну (с ее подготовкой), следующая начнется с подготовки
 concommand.Add("zb_skipwave", function(ply)
 	if IsValid(ply) and not ply:IsAdmin() then return end
@@ -597,9 +599,8 @@ concommand.Add("zb_skipwave", function(ply)
 	local mode = CurrentRound()
 	if not mode or mode.name ~= "zs" or zb.ROUND_STATE ~= 1 or not mode.saved.StartTime then return end
 
-	local period = mode.PrepTime + mode.WaveTime
 	local wave = GetPhase(mode)
-	local nextWaveStart = mode.saved.StartTime + wave * period
+	local nextWaveStart = mode.saved.StartTime + WaveOffset(mode, wave + 1)
 
 	mode.saved.StartTime = mode.saved.StartTime - (nextWaveStart - CurTime())
 	UpdatePhase(mode)

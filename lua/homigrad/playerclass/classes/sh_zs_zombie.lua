@@ -82,24 +82,21 @@ ZS_BOSS_CLASSES = {
 	zs_gonome = {
 		key = "gonome",
 		name = "Gonome",
-		model = "", -- модель гонома рисует cl_zs_boss.lua (скелет HL1 не надевается через bonemerge)
-		-- руки от первого лица - как у agile
-		viewModel = ZS_ZOMBIE_CLASSES.zs_agile.viewModel,
-		viewModelFOV = ZS_ZOMBIE_CLASSES.zs_agile.viewModelFOV,
-		viewModelHiddenBones = ZS_ZOMBIE_CLASSES.zs_agile.viewModelHiddenBones,
-		sounds = {
-			steps = ZS_ZOMBIE_CLASSES.zs_bruiser.sounds.steps,
-			pain = {"vj_hlr/gsrc/npc/gonome/gonome_pain1.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain2.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain3.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain4.wav"},
-			death = {"vj_hlr/gsrc/npc/gonome/gonome_death2.wav", "vj_hlr/gsrc/npc/gonome/gonome_death3.wav", "vj_hlr/gsrc/npc/gonome/gonome_death4.wav"},
-			idle = {"vj_hlr/gsrc/npc/gonome/gonome_idle1.wav", "vj_hlr/gsrc/npc/gonome/gonome_idle2.wav", "vj_hlr/gsrc/npc/gonome/gonome_idle3.wav"},
-		},
+		-- громила из мяса вдвое больше обычного: модель, клешни и звуки громилы
+		model = ZS_ZOMBIE_CLASSES.zs_bruiser.model,
+		material = "models/flesh",
+		viewModel = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModel,
+		viewModelFOV = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModelFOV,
+		viewModelHiddenBones = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModelHiddenBones,
+		sounds = ZS_ZOMBIE_CLASSES.zs_bruiser.sounds,
+		soundPitch = 70,
 		color = Color(200, 170, 40),
 		speed = 1,
 		damageTaken = 1,
 		meleeMul = 2,
 		clawsName = "Gonome Claws",
 		boss = true,
-		modelScale = 1.18, -- скрытая модель вырастает до роста гонома (~85): хитбоксы покрывают всю его фигуру
+		modelScale = 2, -- хитбоксы скрытой модели растут вместе с ней (коробка движения прежняя, чтобы проходить в двери)
 	},
 }
 
@@ -158,6 +155,7 @@ for className, info in pairs(allClasses) do
 		self:SetBodyGroups("00000000000000000000")
 		self:SetPlayerColor(clr_zombie:ToVector())
 		self:SetNWString("ZS_Visual", info.model)
+		self:SetNWString("ZS_VisualMat", info.material or "")
 
 		self.MeleeDamageMul = info.meleeMul
 		self.StaminaExhaustMul = 0 -- зараженные не устают (стамина держится полной в Think)
@@ -190,6 +188,7 @@ for className, info in pairs(allClasses) do
 
 		self:SetMaterial("")
 		self:SetNWString("ZS_Visual", "")
+		self:SetNWString("ZS_VisualMat", "")
 		self.MeleeDamageMul = nil
 		self.StaminaExhaustMul = nil
 
@@ -312,15 +311,6 @@ end)
 hook.Add("CalcMainActivity", "ZS_ZombieAnims", function(ply, vel)
 	if not ZS_IsZombie(ply) then return end
 
-	-- босс: скрытая модель стоит прямо, чтобы ее хитбоксы совпадали с моделью гонома (cl_zs_boss.lua)
-	local info = ZS_ClassInfo(ply.PlayerClassName)
-	if info.boss then
-		local anim = vel:Length2DSqr() > 400 and ACT_HL2MP_RUN or ACT_HL2MP_IDLE
-		if not ply:IsOnGround() and ply:GetMoveType() ~= MOVETYPE_NOCLIP then anim = ACT_HL2MP_JUMP_SLAM end
-
-		return anim, -1
-	end
-
 	local anim = ACT_HL2MP_RUN_ZOMBIE
 	if vel:LengthSqr() <= 0 then
 		anim = ACT_HL2MP_IDLE_ZOMBIE
@@ -412,6 +402,7 @@ if SERVER then
 
 		ragdoll:SetMaterial("NULL")
 		ragdoll:SetNWString("ZS_Visual", ply:GetNWString("ZS_Visual"))
+		ragdoll:SetNWString("ZS_VisualMat", ply:GetNWString("ZS_VisualMat"))
 		ragdoll:SetNWBool("ZS_Black", ply:GetNWBool("ZS_Black", false))
 		ragdoll:SetNWBool("ZS_Gray", ply:GetNWBool("ZS_Gray", false))
 		ragdoll:SetNWBool("ZS_Green", ply:GetNWBool("ZS_Green", false))
@@ -544,6 +535,13 @@ else
 			end
 
 			visual:SetNoDraw(hide)
+
+			-- свой материал модели (босс - из мяса)
+			local mat = ent:GetNWString("ZS_VisualMat", "")
+			if visual.zs_Mat ~= mat then
+				visual.zs_Mat = mat
+				visual:SetMaterial(mat)
+			end
 
 			-- автолиз: гниющая черная плоть, фибродисплазия: костная серая
 			if ent:GetNWFloat("ZS_FrozenUntil", 0) > CurTime() then

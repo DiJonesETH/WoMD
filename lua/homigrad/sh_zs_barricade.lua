@@ -19,7 +19,8 @@ ZSB.MaxNailsPerPlayer = 4 -- точек сварки одного игрока �
 ZSB.MaxPropsInBarricade = 8
 ZSB.RepairPerHit = 10
 ZSB.WeldTime = 3 -- секунд на одну точку сварки
-ZSB.WelderElectrodes = 10 -- электродов в комплекте со сварочным аппаратом
+ZSB.WelderElectrodes = 3 -- электродов в комплекте со сварочным аппаратом
+ZSB.FreePropZombieMul = 5 -- во сколько раз сильнее зараженные бьют свободные (не приваренные) пропы
 ZSB.MaxElectrodes = 40
 
 -- тип патронов "Electrodes" (модель - коробка арбалетных болтов HL2): добавляется в таблицы homigrad
@@ -349,7 +350,10 @@ if SERVER then
 		if not ent.ZSPropHealth or ent.ZSPropBroken then return end
 		if dmginfo:IsDamageType(DMG_CRUSH) then return end
 
-		ent.ZSPropHealth = ent.ZSPropHealth - dmginfo:GetDamage()
+		local attacker = dmginfo:GetAttacker()
+		local byInfected = IsValid(attacker) and ((attacker:IsPlayer() and ZS_IsZombie and ZS_IsZombie(attacker)) or attacker:IsNPC())
+
+		ent.ZSPropHealth = ent.ZSPropHealth - dmginfo:GetDamage() * (byInfected and ZSB.FreePropZombieMul or 1)
 
 		if ent.ZSPropHealth <= 0 then
 			ent.ZSPropBroken = true

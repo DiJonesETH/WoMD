@@ -1,7 +1,7 @@
 local MODE = MODE
 
--- Босс-гоном: в начале BossWave случайный живой зараженный превращается в гонома
--- (модель, анимации и звуки - Opposing Force, ассеты из VJ-HLR-Developers/Half-Life-Resurgence; код свой).
+-- Босс-гоном: в начале BossWave случайный живой зараженный превращается в гонома -
+-- громилу из мяса вдвое больше обычного (класс zs_gonome в sh_zs_zombie.lua), с пониженным голосом громилы.
 -- Босс не падает в регдолл, не получает урон организма (боль, органы, кровь): весь урон снимается
 -- с отдельного запаса здоровья ZS_BossHP (здоровье игрока homigrad обрезает до 100). Клиент: cl_zs_boss.lua
 MODE.BossWave = 3
@@ -13,24 +13,19 @@ MODE.BossSpitDelay = 1.5
 -- гоном временно выключен: zb_gonome 1 включает его появление на BossWave (zb_begonome для теста работает всегда)
 local bossEnabled = CreateConVar("zb_gonome", "0", {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Zombie Survival: spawn the Gonome boss on the boss wave", 0, 1)
 
--- модель, материалы и звуки гонома скачиваются клиентам при входе (без этого у них ERROR или пустота)
-resource.AddFile("models/vj_hlr/opfor/gonome.mdl")
-resource.AddFile("materials/models/hl_resurgence/opfor/zombie_gonome.vmt")
-resource.AddFile("materials/models/hl_resurgence/opfor/zombie_gonome_head.vmt")
-resource.AddSingleFile("materials/models/hl_resurgence/opfor/zombie_gonome_g.vtf")
-
-for _, name in ipairs(file.Find("sound/vj_hlr/gsrc/npc/gonome/*.wav", "GAME")) do
-	resource.AddSingleFile("sound/vj_hlr/gsrc/npc/gonome/" .. name)
-end
-
 util.AddNetworkString("zs_boss_rise")
-util.AddNetworkString("zs_boss_death")
 
 local TEAM_SURVIVORS = 0
 
-local soundsPain = {"vj_hlr/gsrc/npc/gonome/gonome_pain1.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain2.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain3.wav", "vj_hlr/gsrc/npc/gonome/gonome_pain4.wav"}
-local soundsIdle = {"vj_hlr/gsrc/npc/gonome/gonome_idle1.wav", "vj_hlr/gsrc/npc/gonome/gonome_idle2.wav", "vj_hlr/gsrc/npc/gonome/gonome_idle3.wav"}
-local soundsDeath = {"vj_hlr/gsrc/npc/gonome/gonome_death2.wav", "vj_hlr/gsrc/npc/gonome/gonome_death3.wav", "vj_hlr/gsrc/npc/gonome/gonome_death4.wav"}
+-- голос босса - звуки громилы, пониженные (класс zs_gonome в sh_zs_zombie.lua)
+local function BossSound(ply, kind)
+	return ZS_ZombieSound(ply, kind)
+end
+
+local function BossPitch()
+	local info = ZS_BOSS_CLASSES.zs_gonome
+	return math.random(info.soundPitch - 5, info.soundPitch + 5)
+end
 
 local function BossActive()
 	local mode = CurrentRound()
@@ -53,7 +48,7 @@ function MODE:MakeBoss(ply)
 
 	SetGlobalEntity("ZS_Boss", ply)
 
-	ply:EmitSound("vj_hlr/gsrc/npc/gonome/gonome_jumpattack.wav", 110, 90)
+	ply:EmitSound("npc/zombie_poison/pz_alert1.wav", 110, BossPitch())
 	util.ScreenShake(ply:GetPos(), 6, 30, 1.5, 1500)
 
 	net.Start("zs_boss_rise")
@@ -87,8 +82,8 @@ function ZS_BossDamage(ent, dmgInfo)
 
 	if (ent.zs_NextBossPain or 0) < CurTime() then
 		ent.zs_NextBossPain = CurTime() + 0.8
-		ent:EmitSound(soundsPain[math.random(#soundsPain)], 90, math.random(95, 105))
-		ent:SetNWFloat("ZS_GonomeFlinch", CurTime())
+		local snd = BossSound(ent, "pain")
+		if snd then ent:EmitSound(snd, 90, BossPitch()) end
 	end
 
 	if hp <= 0 then ent:Kill() end
@@ -96,13 +91,11 @@ function ZS_BossDamage(ent, dmgInfo)
 	return true
 end
 
--- удары когтями: анимация атаки гонома (урон когтей x2 задан классом zs_gonome)
+-- удары когтями: рык (урон когтей x2 задан классом zs_gonome)
 hook.Add("ZS_ClawAttack", "ZS_Boss", function(ply, special)
 	if not ZS_IsBoss(ply) then return end
 
-	ply:SetNWFloat("ZS_GonomeAttack", CurTime())
-	ply:SetNWInt("ZS_GonomeAttackSeq", special and 2 or math.random(1, 2))
-	ply:EmitSound("vj_hlr/gsrc/npc/gonome/gonome_melee" .. math.random(2) .. ".wav", 85)
+	ply:EmitSound("npc/zombie_poison/pz_warn" .. math.random(2) .. ".wav", 85, BossPitch())
 end)
 
 -- E+M1: схватить выжившего и разорвать на части (гильотина громилы, sh_zs_bruiser.lua), раз в BossGrabCooldown секунд
@@ -112,9 +105,7 @@ local function BossGrab(ply)
 
 	ply.zs_NextBossGrab = CurTime() + MODE.BossGrabCooldown
 
-	ply:SetNWFloat("ZS_GonomeAttack", CurTime())
-	ply:SetNWInt("ZS_GonomeAttackSeq", 2) -- "схватить и сожрать"
-	ply:EmitSound("vj_hlr/gsrc/npc/gonome/gonome_melee2.wav", 95)
+	ply:EmitSound("npc/zombie_poison/pz_throw2.wav", 95, BossPitch())
 end
 
 -- E+M2: плевок кислотой (анимация attack3), сгустки парализуют, как "Парализующие наросты"
@@ -122,9 +113,7 @@ local function BossSpit(ply)
 	if (ply.zs_NextBossSpit or 0) > CurTime() then return end
 	ply.zs_NextBossSpit = CurTime() + MODE.BossSpitCooldown
 
-	ply:SetNWFloat("ZS_GonomeAttack", CurTime())
-	ply:SetNWInt("ZS_GonomeAttackSeq", 3)
-	ply:EmitSound("vj_hlr/gsrc/npc/gonome/gonome_melee1.wav", 95)
+	ply:EmitSound("npc/zombie_poison/pz_throw3.wav", 95, BossPitch())
 
 	timer.Simple(MODE.BossSpitDelay, function()
 		if not IsValid(ply) or not ply:Alive() or not ZS_IsBoss(ply) or not ZS_SpawnAcidGlob then return end
@@ -159,7 +148,8 @@ end)
 timer.Create("ZS_BossIdle", 4, 0, function()
 	local boss = GetGlobalEntity("ZS_Boss")
 	if IsValid(boss) and ZS_IsBoss(boss) and boss:Alive() and math.random(3) == 1 then
-		boss:EmitSound(soundsIdle[math.random(#soundsIdle)], 90, math.random(95, 105))
+		local snd = BossSound(boss, "idle")
+		if snd then boss:EmitSound(snd, 90, BossPitch()) end
 	end
 end)
 
@@ -167,15 +157,7 @@ hook.Add("PlayerDeath", "ZS_Boss", function(ply)
 	if not ZS_IsBoss(ply) then return end
 
 	ply:SetNWBool("ZS_Boss", false)
-	ply:EmitSound(soundsDeath[math.random(#soundsDeath)], 100)
-
 	if GetGlobalEntity("ZS_Boss") == ply then SetGlobalEntity("ZS_Boss", NULL) end
-
-	-- предсмертная анимация гонома (cl_zs_boss.lua)
-	net.Start("zs_boss_death")
-		net.WriteVector(ply:GetPos())
-		net.WriteFloat(ply:EyeAngles().y)
-	net.Broadcast()
 end)
 
 hook.Add("PlayerSpawn", "ZS_Boss", function(ply)

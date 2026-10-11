@@ -7,7 +7,8 @@ MODE.Description = "Survivors must hold out through every wave of the infected. 
 MODE.TEAM_SURVIVORS = 0
 MODE.TEAM_INFECTED = 1
 
-MODE.PrepTime = 120 -- подготовка перед/между волнами
+MODE.FirstPrepTime = 120 -- подготовка перед первой волной
+MODE.PrepTime = 90 -- подготовка между волнами
 MODE.WaveTime = 180 -- длительность одной волны
 
 -- короткий и длинный подрежимы

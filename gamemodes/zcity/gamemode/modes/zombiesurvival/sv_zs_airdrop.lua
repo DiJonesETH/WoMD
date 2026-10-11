@@ -1,6 +1,6 @@
 local MODE = MODE
 
--- Аирдроп выживших: со второй волны в каждую подготовку с неба падает ящик (lua/entities/zs_airdrop.lua).
+-- Аирдроп выживших: со второй волны в подготовку каждой второй волны с неба падает ящик (lua/entities/zs_airdrop.lua).
 -- Каждому выжившему ящик предлагает свои 3 предмета (первый с шансом 20% - специальный: ящик снабжения,
 -- трупосжигатель или турель). По E открывается окно, где игрок берет нужное, а ненужное оставляет.
 
@@ -9,6 +9,7 @@ util.AddNetworkString("zs_airdrop_menu")
 util.AddNetworkString("zs_airdrop_take")
 
 MODE.AirdropFromWave = 2
+MODE.AirdropEvery = 2 -- ящик падает в подготовку каждой AirdropEvery-й волны начиная с AirdropFromWave (2, 4, 6...)
 MODE.AirdropSkyOffset = 80
 MODE.AirdropMaxDropHeight = 3000
 MODE.AirdropMinDist = 300 -- ящик падает в этом радиусе от кого-нибудь из живых выживших
@@ -309,6 +310,7 @@ end
 hook.Add("ZS_PrepStart", "ZS_Airdrop", function(wave)
 	local mode = CurrentRound()
 	if not mode or mode.name ~= "zs" or wave < mode.AirdropFromWave then return end
+	if (wave - mode.AirdropFromWave) % mode.AirdropEvery ~= 0 then return end
 
 	-- один ящик на подготовку
 	mode.saved.AirdropWave = mode.saved.AirdropWave or 0
