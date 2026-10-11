@@ -82,7 +82,7 @@ ZS_BOSS_CLASSES = {
 	zs_gonome = {
 		key = "gonome",
 		name = "Executioner",
-		-- громила из мяса вдвое больше обычного: модель, клешни и звуки громилы
+		-- громила из мяса ростом ~2.2 м: модель, клешни и звуки громилы
 		model = ZS_ZOMBIE_CLASSES.zs_bruiser.model,
 		material = "models/flesh",
 		viewModel = ZS_ZOMBIE_CLASSES.zs_bruiser.viewModel,
@@ -96,7 +96,7 @@ ZS_BOSS_CLASSES = {
 		meleeMul = 2,
 		clawsName = "Executioner Claws",
 		boss = true,
-		modelScale = 2, -- хитбоксы скрытой модели растут вместе с ней (коробка движения прежняя, чтобы проходить в двери)
+		modelScale = 1.2, -- ~2.2 м (обычный игрок ~1.83 м); хитбоксы скрытой модели растут вместе с ней, коробка движения прежняя
 	},
 }
 

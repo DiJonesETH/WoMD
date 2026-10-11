@@ -53,6 +53,7 @@ end
 
 function Infected.Reset()
 	for _, ply in player.Iterator() do
+		ply.zs_WaveBonusGot = 0
 		ply.zs_Class = nil
 		Infected.ClearSkills(ply)
 		hook.Run("ZS_RoundReset", ply)
@@ -225,6 +226,45 @@ timer.Create("ZS_PassivePoints", MODE.PassivePointsInterval, 0, function()
 	for _, ply in player.Iterator() do
 		if ply:Team() == mode.TEAM_INFECTED then
 			Infected.AddPoints(ply, mode.PassivePoints)
+		end
+	end
+end)
+
+-- Награда зараженным за каждую пережитую выжившими волну: после 1-й волны 200 очков, после следующих по 300.
+-- Сумма копится за раунд: игрок, ставший зараженным позже, сразу получает все прошлые награды.
+MODE.WaveBonusPoints = {200, 300, 300, 300, 300}
+MODE.WaveBonusDefault = 300 -- после волн, которых нет в списке (длинный режим)
+
+hook.Add("ZS_PrepStart", "ZS_InfectedWaveBonus", function(wave)
+	local mode = CurrentRound()
+	if not mode or mode.name ~= "zs" or wave < 2 then return end
+
+	-- подготовка волны wave начинается после конца волны wave - 1
+	mode.saved.WaveBonusPaid = mode.saved.WaveBonusPaid or {}
+	if mode.saved.WaveBonusPaid[wave - 1] then return end
+	mode.saved.WaveBonusPaid[wave - 1] = true
+
+	local bonus = mode.WaveBonusPoints[wave - 1] or mode.WaveBonusDefault
+	mode.saved.WaveBonusTotal = (mode.saved.WaveBonusTotal or 0) + bonus
+end)
+
+-- раз в секунду: каждый зараженный добирает недополученные награды за волны
+timer.Create("ZS_InfectedWaveBonus", 1, 0, function()
+	local mode = CurrentRound()
+	if zb.ROUND_STATE ~= 1 or not mode or mode.name ~= "zs" then return end
+
+	local total = mode.saved.WaveBonusTotal or 0
+	if total <= 0 then return end
+
+	for _, ply in player.Iterator() do
+		if ply:Team() == mode.TEAM_INFECTED then
+			local got = ply.zs_WaveBonusGot or 0
+
+			if got < total then
+				ply.zs_WaveBonusGot = total
+				Infected.AddPoints(ply, total - got)
+				ply:ChatPrint("[Infected] +" .. (total - got) .. " points for the waves survived by the humans")
+			end
 		end
 	end
 end)

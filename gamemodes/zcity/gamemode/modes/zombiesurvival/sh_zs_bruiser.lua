@@ -130,6 +130,15 @@ end)
 
 -- Крепкие ноги: hg.Fake (падение в регдолл от урона, взрывов, оглушения) для зомби с навыком не срабатывает.
 -- Оборачиваем саму функцию, а не хук, чтобы не зависеть от порядка хуков
+
+-- от пуль зараженные падают реже: падение в регдолл сразу после пулевого попадания проходит
+-- только с шансом ZS_BULLET_FALL_CHANCE процентов (homigrad роняет от попадания в ноги, сломанных костей и толчка пули)
+ZS_BULLET_FALL_CHANCE = 30
+
+local function FallFromBullet(ply)
+	return ply.zs_BulletHitTime and CurTime() - ply.zs_BulletHitTime <= 0.1
+end
+
 local function PatchFake()
 	if not hg or not hg.Fake or hg.ZS_OrigFake then return end
 
@@ -137,6 +146,10 @@ local function PatchFake()
 	hg.Fake = function(ply, ...)
 		-- крепкие ноги громилы и босс-гоном (sv_zs_boss.lua) не падают в регдолл
 		if IsValid(ply) and ply:IsPlayer() and ply:Alive() and (ZS_HasSkill(ply, "strong_legs") or ZS_IsBoss and ZS_IsBoss(ply)) then
+			return
+		end
+
+		if IsValid(ply) and ply:IsPlayer() and ZS_IsZombie(ply) and FallFromBullet(ply) and math.random(100) > ZS_BULLET_FALL_CHANCE then
 			return
 		end
 
@@ -191,6 +204,12 @@ local function PatchDamage()
 		-- босс-гоном получает урон напрямую в здоровье, минуя организм (sv_zs_boss.lua)
 		if ZS_BossDamage and ZS_BossDamage(ent, dmgInfo) then return true end
 		if BulletImmune(ent, dmgInfo) then return true end
+
+		-- отметка пулевого попадания по зараженному (для шанса падения в PatchFake)
+		if dmgInfo:IsBulletDamage() and IsValid(ent) and ent:IsPlayer() and ZS_IsZombie(ent) then
+			ent.zs_BulletHitTime = CurTime()
+		end
+
 		return hg.ZS_OrigDamageHook(ent, dmgInfo)
 	end
 

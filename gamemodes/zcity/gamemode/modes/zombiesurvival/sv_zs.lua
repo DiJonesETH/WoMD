@@ -290,6 +290,8 @@ function MODE:Intermission()
 	self.saved.Wave = 0
 	self.saved.Active = false
 	self.saved.AirdropWave = 0
+	self.saved.WaveBonusTotal = 0
+	self.saved.WaveBonusPaid = {}
 
 	SetPhaseGlobals(0, waves, false, 0)
 
