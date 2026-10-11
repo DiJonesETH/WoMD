@@ -81,7 +81,7 @@ ZS_ZOMBIE_CLASS_ORDER = {"zs_bruiser", "zs_agile", "zs_metaboliser"}
 ZS_BOSS_CLASSES = {
 	zs_gonome = {
 		key = "gonome",
-		name = "Gonome",
+		name = "Executioner",
 		-- громила из мяса вдвое больше обычного: модель, клешни и звуки громилы
 		model = ZS_ZOMBIE_CLASSES.zs_bruiser.model,
 		material = "models/flesh",
@@ -94,7 +94,7 @@ ZS_BOSS_CLASSES = {
 		speed = 1,
 		damageTaken = 1,
 		meleeMul = 2,
-		clawsName = "Gonome Claws",
+		clawsName = "Executioner Claws",
 		boss = true,
 		modelScale = 2, -- хитбоксы скрытой модели растут вместе с ней (коробка движения прежняя, чтобы проходить в двери)
 	},

@@ -1,6 +1,6 @@
 local MODE = MODE
 
--- Босс-гоном: в начале BossWave случайный живой зараженный превращается в гонома -
+-- Босс-палач (Executioner, внутренний класс zs_gonome): в начале BossWave случайный живой зараженный превращается в палача -
 -- громилу из мяса вдвое больше обычного (класс zs_gonome в sh_zs_zombie.lua), с пониженным голосом громилы.
 -- Босс не падает в регдолл, не получает урон организма (боль, органы, кровь): весь урон снимается
 -- с отдельного запаса здоровья ZS_BossHP (здоровье игрока homigrad обрезает до 100). Клиент: cl_zs_boss.lua
@@ -10,8 +10,8 @@ MODE.BossGrabCooldown = 30
 MODE.BossSpitCooldown = 10
 MODE.BossSpitDelay = 1.5
 
--- гоном временно выключен: zb_gonome 1 включает его появление на BossWave (zb_begonome для теста работает всегда)
-local bossEnabled = CreateConVar("zb_gonome", "0", {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Zombie Survival: spawn the Gonome boss on the boss wave", 0, 1)
+-- zb_executioner 0 выключает появление палача на BossWave (zb_beexecutioner для теста работает всегда)
+local bossEnabled = CreateConVar("zb_executioner", "1", {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Zombie Survival: spawn the Executioner boss on the boss wave", 0, 1)
 
 util.AddNetworkString("zs_boss_rise")
 
@@ -44,7 +44,7 @@ function MODE:MakeBoss(ply)
 	ply:SetNWBool("ZS_Boss", true)
 	ply:SetNWInt("ZS_BossHP", self.BossHealth)
 	ply:SetNWInt("ZS_BossMaxHP", self.BossHealth)
-	ply:SetNWString("PlayerName", "Gonome " .. ply:Nick())
+	ply:SetNWString("PlayerName", "Executioner " .. ply:Nick())
 
 	SetGlobalEntity("ZS_Boss", ply)
 
@@ -195,8 +195,8 @@ hook.Add("PlayerSpawn", "ZS_BossPending", function(ply)
 	end)
 end)
 
--- zb_begonome: моментально стать боссом (админ)
-concommand.Add("zb_begonome", function(ply)
+-- zb_beexecutioner: моментально стать боссом (админ)
+concommand.Add("zb_beexecutioner", function(ply)
 	if not IsValid(ply) or not ply:IsAdmin() then return end
 
 	local mode = CurrentRound()

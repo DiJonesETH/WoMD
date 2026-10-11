@@ -4,7 +4,7 @@ local MODE = MODE
 --   zb_zsteam <игрок> <survivor|infected>          - перевести игрока в команду
 --   zb_zsclass <игрок> <bruiser|agile|metaboliser> - сменить класс зараженного (навыки сбрасываются)
 --   zb_zsresetskills <игрок>                       - обнулить дерево навыков (очки остаются)
---   zb_makegonome <игрок>                          - превратить игрока в гонома
+--   zb_makeexecutioner <игрок>                     - превратить игрока в палача (Executioner)
 
 local TEAM_SURVIVORS, TEAM_INFECTED = 0, 1
 
@@ -140,7 +140,7 @@ AdminCommand("zb_zsresetskills", "<player>", function(mode, caller, target)
 	Announce(caller, "reset the skill tree of " .. target:Nick())
 end)
 
-AdminCommand("zb_makegonome", "<player>", function(mode, caller, target)
+AdminCommand("zb_makeexecutioner", "<player>", function(mode, caller, target)
 	if not (target:Alive() and ZS_IsZombie(target)) then
 		if target:Alive() then target:KillSilent() end
 
@@ -150,7 +150,7 @@ AdminCommand("zb_makegonome", "<player>", function(mode, caller, target)
 
 	timer.Simple(0.3, function()
 		if IsValid(target) and mode:MakeBoss(target) then
-			Announce(caller, "turned " .. target:Nick() .. " into a Gonome")
+			Announce(caller, "turned " .. target:Nick() .. " into the Executioner")
 			mode:CheckLastMan()
 		end
 	end)

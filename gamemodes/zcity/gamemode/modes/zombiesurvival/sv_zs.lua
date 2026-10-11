@@ -216,7 +216,7 @@ local function SpawnZombie(mode, ply, nest)
 	zb.GiveRole(ply, info.name, info.color)
 end
 
--- спавн зараженного в обход ожидания (команда zb_begonome); класс выбирается случайно, если его нет
+-- спавн зараженного в обход ожидания (команды zb_beexecutioner и zb_makeexecutioner); класс выбирается случайно, если его нет
 function MODE:ForceSpawnZombie(ply)
 	if not ply.zs_Class then
 		self.Infected.SetClass(ply, ZS_ZOMBIE_CLASS_ORDER[math.random(#ZS_ZOMBIE_CLASS_ORDER)])

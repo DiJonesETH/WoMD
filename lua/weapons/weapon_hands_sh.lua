@@ -1324,10 +1324,10 @@ local customClassInfo = {
 		Instructions = "LMB - slash\nRMB - block\n\n<color=60,200,80>Balanced claws. Stay close to the horde to keep it alive."
 	},
 	["zs_gonome"] = {
-		PrintName = "Gonome Claws",
+		PrintName = "Executioner Claws",
 		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
 		handsDesc = "zs_bruiser",
-		Instructions = "LMB - slash\nRMB - block\n\n<color=200,170,40>The Gonome tears survivors apart."
+		Instructions = "LMB - slash\nRMB - block\n\n<color=200,170,40>The Executioner tears survivors apart."
 	}
 }
 
