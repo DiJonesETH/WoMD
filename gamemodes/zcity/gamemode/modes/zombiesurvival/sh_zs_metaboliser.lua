@@ -478,7 +478,7 @@ local function PlaceBlister(ply)
 	blister:EmitSound("physics/flesh/flesh_squishy_impact_hard" .. math.random(4) .. ".wav", 70, 80)
 end
 
--- Бактериальный посев: R на союзника - лечение в течение 15 секунд
+-- Бактериальный посев: R на союзника - лечение в течение 15 секунд и адреналин
 local SEED_TIME, SEED_COOLDOWN, SEED_RANGE = 15, 20, 120
 local seeded = {}
 
@@ -501,6 +501,12 @@ local function BacterialSeeding(ply)
 
 	ply.zs_NextSeed = CurTime() + SEED_COOLDOWN
 	seeded[ally] = CurTime() + SEED_TIME
+
+	-- вместе с лечением - доза адреналина, как от шприца (weapon_adrenaline)
+	local org = ally.organism
+	if org and org.adrenalineAdd then
+		org.adrenalineAdd = math.Approach(org.adrenalineAdd, 4, 4)
+	end
 
 	ply:EmitSound("npc/barnacle/barnacle_gulp" .. math.random(2) .. ".wav", 70)
 	Notify(ply, "Seeding: your ally heals for " .. SEED_TIME .. " sec.")

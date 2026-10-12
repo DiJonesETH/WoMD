@@ -14,6 +14,7 @@ ENT.MaxHealth = 400
 ENT.HeightScale = 0.38
 ENT.HalfWidth = 46
 ENT.HalfHeight = 18
+ENT.Blisters = 2 -- волдырей вокруг нового гнезда
 ENT.SpawnCooldown = 2 -- из гнезда выходит один зараженный раз в SpawnCooldown секунд
 
 if SERVER then
@@ -37,6 +38,16 @@ if SERVER then
 
 		self:SetHealth(self.MaxHealth)
 		self:SetMaxHealth(self.MaxHealth)
+
+		-- вокруг гнезда сразу вырастают волдыри мясного мицелия (lua/entities/zs_blister.lua)
+		timer.Simple(0, function()
+			if not IsValid(self) or not ZS_SpawnBlisterNear then return end
+
+			local colony = {}
+			for _ = 1, self.Blisters do
+				ZS_SpawnBlisterNear(self:GetPos(), self:GetOwner(), colony, self)
+			end
+		end)
 	end
 
 	-- зараженный появляется ровно в точке, где поставлено гнездо (на земле под его центром)

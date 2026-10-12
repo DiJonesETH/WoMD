@@ -31,6 +31,14 @@ ZS_SUPPLY_BOXES = {
 		entity = "zs_incinerator",
 		desc = "A barrel for burning corpses. Fuel it with gas cylinders and canisters, then throw in two corpses: they burn for 100 seconds",
 	},
+	lottery = {
+		name = "Lottery Box",
+		model = "models/items/item_beacon_crate.mdl",
+		color = Color(255, 200, 40),
+		weapon = "weapon_zs_box_lottery",
+		entity = "zs_lottery",
+		desc = "Spin it like a case for 200 survivor points: melee, food, medicine, pistols, rifles, an arc welder... or death",
+	},
 }
 
 ZS_SUPPLY_BOX_RADIUS = 262 -- 5 метров: ближе такую же постройку поставить нельзя

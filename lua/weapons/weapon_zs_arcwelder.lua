@@ -5,7 +5,7 @@ if SERVER then AddCSLuaFile() end
 -- Зажать ЛКМ на пропе - приварить его к тому, что за ним; зажать ПКМ на баррикаде - чинить; R - срезать точку сварки.
 -- Модель собрана из примитивов (горелка в руке, аппарат за спиной, кабель между ними), анимация процедурная.
 SWEP.PrintName = "Arc Welder"
-SWEP.Instructions = "A portable arc welder for building barricades.\n\nHold LMB on a prop to weld it to whatever is behind it (3 seconds, uses an electrode).\nHold RMB on a barricade to repair it.\nR - cut a weld off.\nHold Z - pass through barricades."
+SWEP.Instructions = "A portable arc welder for building barricades.\n\nHold LMB on a prop to weld it to whatever is behind it (3 seconds, uses an electrode).\nHold LMB on a door to weld it shut (uses 2 electrodes).\nHold RMB on a barricade to repair it.\nR - cut a weld off.\nHold Z - pass through barricades."
 SWEP.Category = "ZCity Other"
 SWEP.Spawnable = true
 SWEP.AdminOnly = false
@@ -89,12 +89,26 @@ if SERVER then
 		local tr = WeldTrace(owner, self.WeldRange)
 		local trent = tr.Entity
 
-		if not CanWeldEntity(trent, tr.PhysicsBone) or tr.Fraction == 0 or Full(trent) then return end
-		if not b.IsNailed(trent) and not trent:GetPhysicsObject():IsMoveable() then return end
-
 		local function Fail(text)
 			if not quiet then Message(owner, text) end
 		end
+
+		-- дверь карты заваривается целиком за DoorElectrodes электродов
+		if b.IsDoor(trent) then
+			if b.IsNailed(trent) then return Fail("This door is already welded shut") end
+			if b.GetElectrodes(owner) < b.DoorElectrodes then return Fail("You need " .. b.DoorElectrodes .. " electrodes to weld a door") end
+
+			return {
+				door = true,
+				ent = trent,
+				localPos = trent:WorldToLocal(tr.HitPos),
+				hitPos = tr.HitPos,
+				normal = tr.HitNormal,
+			}
+		end
+
+		if not CanWeldEntity(trent, tr.PhysicsBone) or tr.Fraction == 0 or Full(trent) then return end
+		if not b.IsNailed(trent) and not trent:GetPhysicsObject():IsMoveable() then return end
 
 		if tr.MatType == MAT_GRATE or tr.MatType == MAT_CLIP then return Fail("Impossible") end
 		if tr.MatType == MAT_GLASS then return Fail("You can't weld glass") end
@@ -173,6 +187,15 @@ if SERVER then
 		local fresh = self:FindWeldTarget()
 		if not fresh or fresh.ent ~= target.ent or fresh.attach ~= target.attach then return end
 		if b.GetElectrodes(owner) <= 0 then return end
+
+		if fresh.door then
+			b.BarricadeDoor(fresh.ent)
+			b.SetElectrodes(owner, b.GetElectrodes(owner) - b.DoorElectrodes)
+
+			sound.Play("ambient/energy/zap" .. math.random(1, 3) .. ".wav", fresh.hitPos, 75, math.random(100, 115))
+			util.Decal("FadingScorch", fresh.hitPos + fresh.normal, fresh.hitPos - fresh.normal)
+			return
+		end
 
 		local cons
 		for _, old in pairs(constraint.FindConstraints(fresh.ent, "Weld")) do

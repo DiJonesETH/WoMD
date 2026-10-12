@@ -57,7 +57,7 @@ local lootCategories = {
 	},
 }
 
-local specialItems = {"weapon_zs_box_arsenal", "weapon_zs_box_medical", "weapon_zs_box_tech", "weapon_zs_box_incinerator"}
+local specialItems = {"weapon_zs_box_arsenal", "weapon_zs_box_medical", "weapon_zs_box_tech", "weapon_zs_box_incinerator", "weapon_zs_box_lottery"}
 
 for _, id in ipairs(ZS_TURRET_ORDER or {}) do
 	specialItems[#specialItems + 1] = ZS_TURRETS[id].weapon

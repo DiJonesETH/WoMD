@@ -1,7 +1,7 @@
 AddCSLuaFile()
 
 -- Волдырь мясного мицелия (навык metaboliser "Мясной мицелий"): дышит, лечит зараженных рядом,
--- раз в 40 секунд выращивает новый волдырь (до 5 в колонии), взрывается кислотой рядом с выжившими
+-- раз в 40 секунд выращивает новый волдырь (до 5 в колонии). Выжившим его нужно разрушить, как гнездо
 ENT.Type = "anim"
 ENT.Base = "base_anim"
 ENT.PrintName = "Flesh Blister"
@@ -12,8 +12,7 @@ ENT.Material = "models/flesh"
 ENT.Radius = 262 -- 5 метров
 ENT.GrowInterval = 40
 ENT.MaxColony = 5
-ENT.CoughTime = 40
-ENT.ExplodeDamage = 15
+ENT.MaxHealth = 150
 
 if SERVER then
 	function ENT:Initialize()
@@ -28,7 +27,8 @@ if SERVER then
 		local phys = self:GetPhysicsObject()
 		if IsValid(phys) then phys:EnableMotion(false) end
 
-		self:SetHealth(60)
+		self:SetHealth(self.MaxHealth)
+		self:SetMaxHealth(self.MaxHealth)
 
 		self.Colony = self.Colony or {}
 		self.Colony[self] = true
@@ -46,58 +46,31 @@ if SERVER then
 		return count
 	end
 
-	function ENT:Grow()
-		if ColonySize(self.Colony) >= self.MaxColony then return end
-
+	-- новый волдырь на земле в 80-160 юнитах от точки pos (колония общая)
+	function ZS_SpawnBlisterNear(pos, owner, colony, filter)
 		for _ = 1, 6 do
 			local dir = Angle(0, math.Rand(0, 360), 0):Forward()
-			local start = self:GetPos() + dir * math.Rand(80, 160) + Vector(0, 0, 60)
+			local start = pos + dir * math.Rand(80, 160) + Vector(0, 0, 60)
 
-			local tr = util.TraceLine({start = start, endpos = start - Vector(0, 0, 200), filter = self, mask = MASK_SOLID_BRUSHONLY})
+			local tr = util.TraceLine({start = start, endpos = start - Vector(0, 0, 200), filter = filter, mask = MASK_SOLID_BRUSHONLY})
 
 			if tr.Hit and tr.HitNormal.z > 0.6 then
 				local blister = ents.Create("zs_blister")
 				blister:SetPos(tr.HitPos)
-				blister:SetOwner(self:GetOwner())
-				blister.Colony = self.Colony
+				blister:SetOwner(owner)
+				blister.Colony = colony
 				blister:Spawn()
 
 				blister:EmitSound("physics/flesh/flesh_squishy_impact_hard" .. math.random(4) .. ".wav", 70, 80)
-				return
+				return blister
 			end
 		end
 	end
 
-	function ENT:Explode()
-		if self.Exploded then return end
-		self.Exploded = true
+	function ENT:Grow()
+		if ColonySize(self.Colony) >= self.MaxColony then return end
 
-		local pos = self:GetPos() + Vector(0, 0, 16)
-
-		self:EmitSound("physics/flesh/flesh_bloody_break.wav", 85)
-
-		local attacker = IsValid(self:GetOwner()) and self:GetOwner() or self
-
-		for _, ply in player.Iterator() do
-			if not ply:Alive() or ply:Team() ~= 0 then continue end
-			if ply:GetPos():Distance(pos) > self.Radius then continue end
-
-			local dmg = DamageInfo()
-			dmg:SetAttacker(attacker)
-			dmg:SetInflictor(self)
-			dmg:SetDamage(self.ExplodeDamage)
-			dmg:SetDamageType(DMG_BURN)
-			dmg:SetDamagePosition(ply:GetPos() + ply:OBBCenter())
-			hg.GetCurrentCharacter(ply):TakeDamageInfo(dmg)
-
-			ply.zs_CoughUntil = CurTime() + self.CoughTime
-		end
-
-		if ZS_SpawnAcidBurst then
-			ZS_SpawnAcidBurst(attacker, pos, 16, 350)
-		end
-
-		self:Remove()
+		ZS_SpawnBlisterNear(self:GetPos(), self:GetOwner(), self.Colony, self)
 	end
 
 	function ENT:Think()
@@ -111,10 +84,7 @@ if SERVER then
 			for _, ply in player.Iterator() do
 				if not ply:Alive() or ply:GetPos():Distance(pos) > self.Radius then continue end
 
-				if ply:Team() == 0 then
-					self:Explode()
-					return
-				elseif ZS_IsZombie(ply) and ZS_HealOrganism then
+				if ZS_IsZombie(ply) and ZS_HealOrganism then
 					ZS_HealOrganism(ply, 1.5)
 				end
 			end
@@ -134,8 +104,13 @@ if SERVER then
 		if IsValid(attacker) and attacker:IsPlayer() and attacker:Team() ~= 0 then return 0 end
 
 		self:SetHealth(self:Health() - dmg:GetDamage())
+		self:EmitSound("physics/flesh/flesh_squishy_impact_hard" .. math.random(4) .. ".wav", 70)
 
 		if self:Health() <= 0 then
+			local effect = EffectData()
+			effect:SetOrigin(self:GetPos())
+			util.Effect("BloodImpact", effect)
+
 			self:EmitSound("physics/flesh/flesh_bloody_break.wav", 75)
 			self:Remove()
 		end

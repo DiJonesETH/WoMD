@@ -243,7 +243,7 @@ MODE.SkillTrees = {
 		},
 		nest = {
 			name = "Nest",
-			desc = "The infected grows putrid mass to build a nest.\n+ Once per round you can build a nest for your team to spawn at, press E+M1.",
+			desc = "The infected grows putrid mass to build a nest.\n+ Once per round you can build a nest for your team to spawn at, press E+M1. The nest grows 2 healing blisters around it.",
 			short = "E+M1: nest (once per wave)",
 			cost = 200,
 			branch = "right",
@@ -252,7 +252,7 @@ MODE.SkillTrees = {
 		},
 		meat_mycelium = {
 			name = "Meat Mycelium",
-			desc = "The infected spreads spores of meat mycelium that react sharply to their surroundings and regenerate flesh.\n+ You can place 1 blister per round. The blister multiplies up to 5 and heals infected within 5 meters, and it explodes when survivors are in that radius. Press E+M2",
+			desc = "The infected spreads spores of meat mycelium that react sharply to their surroundings and regenerate flesh.\n+ You can place 1 blister per round. The blister multiplies up to 5 and heals infected within 5 meters, and survivors have to destroy it. Press E+M2",
 			short = "E+M2: blister (once per wave)",
 			cost = 300,
 			branch = "right",
@@ -261,8 +261,8 @@ MODE.SkillTrees = {
 		},
 		bacterial_seeding = {
 			name = "Bacterial Seeding",
-			desc = "The infected pumps beneficial bacteria into others.\n+ Press R on an ally to start healing",
-			short = "R on ally: heal",
+			desc = "The infected pumps beneficial bacteria into others.\n+ Press R on an ally to start healing and give them an adrenaline rush",
+			short = "R on ally: heal + adrenaline",
 			cost = 600,
 			branch = "right",
 			requires = {"meat_mycelium"},

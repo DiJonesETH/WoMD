@@ -229,6 +229,11 @@ for className, info in pairs(allClasses) do
 			org.needotrub = false
 		end
 
+		-- позвоночника у зараженных нет: перелом не парализует
+		org.spine1 = 0
+		org.spine2 = 0
+		org.spine3 = 0
+
 		org.jawdislocation = false
 		org.llegdislocation = false
 		org.rlegdislocation = false

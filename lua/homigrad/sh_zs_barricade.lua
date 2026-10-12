@@ -20,6 +20,9 @@ ZSB.MaxPropsInBarricade = 8
 ZSB.RepairPerHit = 10
 ZSB.WeldTime = 3 -- секунд на одну точку сварки
 ZSB.WelderElectrodes = 3 -- электродов в комплекте со сварочным аппаратом
+ZSB.DoorHealth = 1600 -- заваренная дверь: прочность баррикады, запаса починки нет
+ZSB.DoorElectrodes = 2
+ZSB.DoorMaterial = "phoenix_storms/cube"
 ZSB.FreePropZombieMul = 5 -- во сколько раз сильнее зараженные бьют свободные (не приваренные) пропы
 ZSB.MaxElectrodes = 40
 
@@ -78,6 +81,13 @@ end
 -- электроды сварочного аппарата - обычные патроны "Electrodes" (sh_ammostuff.lua): их можно выбросить и подобрать
 ZSB.ElectrodeAmmo = "Electrodes"
 
+-- двери карты, которые сварочный аппарат заваривает целиком
+ZSB.DoorClasses = {func_door = true, func_door_rotating = true, prop_door_rotating = true}
+
+function ZSB.IsDoor(ent)
+	return IsValid(ent) and ZSB.DoorClasses[ent:GetClass()] == true
+end
+
 function ZSB.GetElectrodes(ply)
 	return ply:GetAmmoCount(ZSB.ElectrodeAmmo)
 end
@@ -126,6 +136,32 @@ if SERVER then
 
 	function ZSB.GiveElectrodes(ply, n)
 		ZSB.SetElectrodes(ply, ZSB.GetElectrodes(ply) + n)
+	end
+
+	-- заварить дверь: она запирается, становится баррикадой с прочностью DoorHealth без запаса починки
+	function ZSB.BarricadeDoor(door)
+		door.ZSDoorBarricade = true
+
+		ZSB.SetMaxHealth(door, ZSB.DoorHealth)
+		ZSB.SetHealth(door, ZSB.DoorHealth)
+		ZSB.SetRepairs(door, 0)
+
+		door:SetMaterial(ZSB.DoorMaterial)
+		door:Fire("Close")
+		door:Fire("Lock")
+
+		door:SetCustomCollisionCheck(true)
+		door:SetNW2Bool("ZS_Nailed", true)
+		door:CollisionRulesChanged()
+	end
+
+	local function BreakDoor(door)
+		local effect = EffectData()
+		effect:SetOrigin(door:WorldSpaceCenter())
+		util.Effect("Explosion", effect, true, true)
+
+		door:EmitSound("physics/metal/metal_box_break" .. math.random(2) .. ".wav", 90)
+		door:Remove()
 	end
 
 	function ZSB.SetHealth(ent, v) ent:SetNW2Float("ZSB_HP", v) end
@@ -329,6 +365,11 @@ if SERVER then
 
 		if ZSB.GetHealth(ent) <= 0 then
 			ZSB.SetHealth(ent, 0)
+
+			if ent.ZSDoorBarricade then
+				BreakDoor(ent)
+				return true
+			end
 
 			for _, nail in ipairs(ZSB.GetNails(ent)) do
 				ZSB.RemoveNail(nail)
