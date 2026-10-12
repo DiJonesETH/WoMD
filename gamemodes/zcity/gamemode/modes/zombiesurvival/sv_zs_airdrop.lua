@@ -226,6 +226,8 @@ local function GetCandidatePoints()
 	return pos and {pos} or {}
 end
 
+ZS_GetMapPoints = GetCandidatePoints -- случайные точки карты (генератор, sv_zs_generator.lua)
+
 -- точки сброса поближе к живым выжившим, чтобы ящик можно было найти за время подготовки
 local function NearSurvivors(points, mode)
 	local survivors = {}
