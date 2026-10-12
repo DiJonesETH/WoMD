@@ -4,7 +4,7 @@ AddCSLuaFile()
 -- Канистры бензина (пропы), поднесенные к генератору, заливаются в бак (до MaxFuel).
 -- По E открывается окно с баком и шнуром стартера: шнур тянут мышью в сторону, отпущенный он возвращается.
 -- Каждый рывок - попытка завода; с полным баком генератор заводится с шансом StartChance.
--- Завел - получи случайный ящик снабжения (арсенал, тех., медицина) и Reward очков выжившего.
+-- Завел - получи случайный ящик (арсенал, тех., медицина, лотерея) и Reward очков выжившего.
 ENT.Type = "anim"
 ENT.Base = "base_anim"
 ENT.PrintName = "Generator"
@@ -14,7 +14,7 @@ ENT.Model = "models/props_vehicles/generatortrailer01.mdl"
 ENT.MaxFuel = 2
 ENT.StartChance = 30
 ENT.Reward = 300
-ENT.RewardBoxes = {"weapon_zs_box_arsenal", "weapon_zs_box_tech", "weapon_zs_box_medical"}
+ENT.RewardBoxes = {"weapon_zs_box_arsenal", "weapon_zs_box_tech", "weapon_zs_box_medical", "weapon_zs_box_lottery"}
 ENT.FuelRadius = 90
 ENT.PullCooldown = 0.8
 

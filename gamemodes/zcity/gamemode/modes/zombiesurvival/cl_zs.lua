@@ -84,6 +84,7 @@ net.Receive("zs_start", function()
 	net.ReadUInt(8)
 
 	classMenuShown = false
+	ZS_AirdropEnd = 0
 	introStart = CurTime()
 
 	zb.RemoveFade()
@@ -159,6 +160,7 @@ local function GetAimedNest()
 end
 
 local colSurvivorPoints = Color(120, 220, 120)
+local colAirdrop = Color(255, 70, 50)
 
 local function FormatTime(seconds)
 	seconds = math.max(math.ceil(seconds), 0)
@@ -194,6 +196,14 @@ local function DrawRoundInfo()
 		local py = y + h + ScreenScale(3)
 		draw.RoundedBox(6, x, py, w, ScreenScale(14), colBG)
 		draw.SimpleText("SP: " .. lply:GetNWInt("ZS_SPoints", 0), "ZB_InterfaceMedium", x + ScreenScale(5), py + ScreenScale(7), colSurvivorPoints, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+
+		-- аирдроп на карте: время до исчезновения ящика (cl_zs_airdrop.lua)
+		local airdropLeft = (ZS_AirdropEnd or 0) - CurTime()
+		if airdropLeft > 0 then
+			local ay = py + ScreenScale(17)
+			draw.RoundedBox(6, x, ay, w, ScreenScale(14), colBG)
+			draw.SimpleText("Airdrop arrived: " .. FormatTime(airdropLeft), "ZB_InterfaceMedium", x + ScreenScale(5), ay + ScreenScale(7), colAirdrop, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+		end
 	end
 end
 

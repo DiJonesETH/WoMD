@@ -1,9 +1,14 @@
 MODE.name = "zs"
 
--- Аирдроп выживших: сирена (текст оповещения сервер пишет в чат, sv_zs_airdrop.lua)
+-- Аирдроп выживших: сирена и плашка "Airdrop arrived" с отсчетом до исчезновения ящика (рисует cl_zs.lua);
+-- текст оповещения сервер пишет в чат (sv_zs_airdrop.lua)
+ZS_AirdropEnd = 0
 
 net.Receive("zs_airdrop", function()
-	surface.PlaySound("ambient/alarms/klaxon1.wav")
+	net.ReadVector()
+	ZS_AirdropEnd = net.ReadFloat()
+
+	surface.PlaySound("npc/attack_helicopter/aheli_megabomb_siren1.wav")
 end)
 
 -- окно выбора лута: 3 предмета, игрок берет нужное, ненужное остается в ящике (sv_zs_airdrop.lua)

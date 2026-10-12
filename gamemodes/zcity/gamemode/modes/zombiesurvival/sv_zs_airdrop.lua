@@ -306,6 +306,7 @@ function MODE:SpawnAirdrop()
 
 	net.Start("zs_airdrop")
 		net.WriteVector(pos)
+		net.WriteFloat(crate:GetDieTime())
 	net.Send(survivors)
 end
 
