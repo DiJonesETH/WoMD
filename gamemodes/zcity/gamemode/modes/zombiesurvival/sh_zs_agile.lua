@@ -258,7 +258,11 @@ local function StartLethalDash(ply, victim)
 		local target = victim.FakeRagdoll
 		if not IsValid(target) then return end
 
-		if not IsValid(ply.FakeRagdoll) then hg.Fake(ply) end
+		if not IsValid(ply.FakeRagdoll) then
+			ply.zs_AllowFake = true
+			hg.Fake(ply)
+			ply.zs_AllowFake = nil
+		end
 
 		local ragdoll = ply.FakeRagdoll
 		if not IsValid(ragdoll) then return end

@@ -128,15 +128,23 @@ hook.Add("Think", "ZS_BruiserCarcinoma", function()
 	end
 end)
 
--- Крепкие ноги: hg.Fake (падение в регдолл от урона, взрывов, оглушения) для зомби с навыком не срабатывает.
--- Оборачиваем саму функцию, а не хук, чтобы не зависеть от порядка хуков
+-- Зараженные не падают в регдолл от урона, взрывов, оглушения и приземлений. Разрешено только:
+-- - упасть самому командой fake (lua/homigrad/fake/sv_input.lua);
+-- - agile во время рывка и сразу после него, летальный рывок (ply.zs_AllowFake, sh_zs_agile.lua).
+-- Оборачиваем саму функцию hg.Fake, а не хук, чтобы не зависеть от порядка хуков
+local AGILE_DASH_GRACE = 1.5
 
--- от пуль зараженные падают реже: падение в регдолл сразу после пулевого попадания проходит
--- только с шансом ZS_BULLET_FALL_CHANCE процентов (homigrad роняет от попадания в ноги, сломанных костей и толчка пули)
-ZS_BULLET_FALL_CHANCE = 30
+local function ZombieMayFall(ply)
+	if ply.zs_AllowFake then return true end
+	if ply.PlayerClassName == "zs_agile" and (ply.zs_DashUntil or 0) + AGILE_DASH_GRACE > CurTime() then return true end
 
-local function FallFromBullet(ply)
-	return ply.zs_BulletHitTime and CurTime() - ply.zs_BulletHitTime <= 0.1
+	-- вызов из консольной команды fake
+	for level = 3, 4 do
+		local info = debug.getinfo(level, "S")
+		if info and string.find(info.short_src or "", "fake/sv_input.lua", 1, true) then return true end
+	end
+
+	return false
 end
 
 local function PatchFake()
@@ -144,13 +152,10 @@ local function PatchFake()
 
 	hg.ZS_OrigFake = hg.Fake
 	hg.Fake = function(ply, ...)
-		-- крепкие ноги громилы и босс-гоном (sv_zs_boss.lua) не падают в регдолл
-		if IsValid(ply) and ply:IsPlayer() and ply:Alive() and (ZS_HasSkill(ply, "strong_legs") or ZS_IsBoss and ZS_IsBoss(ply)) then
-			return
-		end
-
-		if IsValid(ply) and ply:IsPlayer() and ZS_IsZombie(ply) and FallFromBullet(ply) and math.random(100) > ZS_BULLET_FALL_CHANCE then
-			return
+		if IsValid(ply) and ply:IsPlayer() and ply:Alive() and ZS_IsZombie(ply) then
+			-- боссы не падают вообще
+			if ZS_IsBoss and ZS_IsBoss(ply) then return end
+			if not ZombieMayFall(ply) then return end
 		end
 
 		return hg.ZS_OrigFake(ply, ...)
@@ -194,6 +199,17 @@ local function BulletImmune(ent, dmgInfo)
 	return true
 end
 
+-- урон зараженных по зараженным (когти, кислота, взрывы волдырей) не проходит; свой урон (падение и т.п.) проходит
+local function InfectedFriendlyFire(ent, dmgInfo)
+	local victim = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
+	if not IsValid(victim) or not victim:IsPlayer() or not ZS_IsZombie(victim) then return false end
+
+	local attacker = dmgInfo:GetAttacker()
+	if IsValid(attacker) and not attacker:IsPlayer() and IsValid(attacker:GetOwner()) then attacker = attacker:GetOwner() end
+
+	return IsValid(attacker) and attacker:IsPlayer() and attacker ~= victim and ZS_IsZombie(attacker)
+end
+
 local function PatchDamage()
 	local hooks = hook.GetTable().EntityTakeDamage
 	local orig = hooks and hooks["homigrad-damage"]
@@ -205,10 +221,7 @@ local function PatchDamage()
 		if ZS_BossDamage and ZS_BossDamage(ent, dmgInfo) then return true end
 		if BulletImmune(ent, dmgInfo) then return true end
 
-		-- отметка пулевого попадания по зараженному (для шанса падения в PatchFake)
-		if dmgInfo:IsBulletDamage() and IsValid(ent) and ent:IsPlayer() and ZS_IsZombie(ent) then
-			ent.zs_BulletHitTime = CurTime()
-		end
+		if InfectedFriendlyFire(ent, dmgInfo) then return true end
 
 		return hg.ZS_OrigDamageHook(ent, dmgInfo)
 	end

@@ -14,6 +14,7 @@ ENT.Model = "models/props_vehicles/generatortrailer01.mdl"
 ENT.MaxFuel = 2
 ENT.StartChance = 30
 ENT.Reward = 300
+ENT.RunTime = 120 -- заведенный генератор исчезает через столько секунд
 ENT.RewardBoxes = {"weapon_zs_box_arsenal", "weapon_zs_box_tech", "weapon_zs_box_medical", "weapon_zs_box_lottery"}
 ENT.FuelRadius = 90
 ENT.PullCooldown = 0.8
@@ -83,6 +84,8 @@ if SERVER then
 
 		self.EngineSound = CreateSound(self, "vehicles/v8/v8_start_loop1.wav")
 		self.EngineSound:PlayEx(0.8, 100)
+
+		SafeRemoveEntityDelayed(self, self.RunTime)
 
 		-- награда тому, кто завел
 		local box = self.RewardBoxes[math.random(#self.RewardBoxes)]

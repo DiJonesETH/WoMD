@@ -11,7 +11,7 @@ MODE.FirstPrepTime = 120 -- подготовка перед первой вол�
 MODE.PrepTime = 90 -- подготовка между волнами
 MODE.WaveTime = 180 -- длительность одной волны
 
--- короткий и длинный подрежимы
+-- короткий, длинный и бесконечный подрежимы
 MODE.Types = MODE.Types or {}
 MODE.Types.zs_short = {
 	PrintName = "Short",
@@ -23,6 +23,17 @@ MODE.Types.zs_long = {
 	Waves = 12,
 	Chance = 0.02,
 }
+-- бесконечный: без волн, после первой подготовки зараженные идут, пока жив хоть один выживший
+MODE.Types.zs_endless = {
+	PrintName = "Endless",
+	Waves = 0,
+	Endless = true,
+	Chance = 0.02,
+}
+
+function MODE:IsEndless()
+	return GetGlobalBool("ZS_Endless", false)
+end
 
 -- текущая фаза раунда, синхронизируется через глобальные переменные
 function MODE:GetWaveInfo()

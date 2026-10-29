@@ -116,9 +116,15 @@ local function WaveOffset(mode, wave)
 end
 
 -- Возвращает номер волны, идёт ли волна, время конца фазы и закончились ли все волны.
+-- В бесконечном режиме одна "волна" без конца после первой подготовки; время конца фазы - конец подготовки.
 local function GetPhase(mode)
 	local data = mode.saved
 	if not data.StartTime then return 0, false, 0, false end
+
+	if data.Endless then
+		local prepEnd = data.StartTime + mode.FirstPrepTime
+		return 1, CurTime() >= prepEnd, prepEnd, false
+	end
 
 	local elapsed = CurTime() - data.StartTime
 
@@ -283,7 +289,11 @@ function MODE:Intermission()
 	self.Type = CROUND
 
 	local waves = self.Types[self.Type].Waves
-	local total = WaveOffset(self, waves + 1)
+	local endless = self.Types[self.Type].Endless == true
+	local total = endless and 86400 or WaveOffset(self, waves + 1)
+
+	self.saved.Endless = endless
+	SetGlobalBool("ZS_Endless", endless)
 
 	self.saved.Waves = waves
 	self.saved.StartTime = nil
@@ -292,6 +302,7 @@ function MODE:Intermission()
 	self.saved.AirdropWave = 0
 	self.saved.WaveBonusTotal = 0
 	self.saved.WaveBonusPaid = {}
+	self.saved.NextEndlessAirdrop = nil
 
 	SetPhaseGlobals(0, waves, false, 0)
 
@@ -490,6 +501,8 @@ end
 MODE.LastManPoints = 2500
 
 function MODE:CheckLastMan()
+	-- в бесконечном режиме последнего выжившего не объявляют
+	if self.saved.Endless then return end
 	if self.saved.LastManDone or CountAliveSurvivors() ~= 1 then return end
 
 	local last
@@ -605,6 +618,7 @@ concommand.Add("zb_skipwave", function(ply)
 
 	local mode = CurrentRound()
 	if not mode or mode.name ~= "zs" or zb.ROUND_STATE ~= 1 or not mode.saved.StartTime then return end
+	if mode.saved.Endless then return end
 
 	local wave = GetPhase(mode)
 	local nextWaveStart = mode.saved.StartTime + WaveOffset(mode, wave + 1)

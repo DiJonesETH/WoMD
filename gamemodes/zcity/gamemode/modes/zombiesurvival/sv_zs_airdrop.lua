@@ -9,6 +9,8 @@ util.AddNetworkString("zs_airdrop_menu")
 util.AddNetworkString("zs_airdrop_take")
 
 MODE.AirdropFromWave = 2
+MODE.EndlessAirdropInterval = 300 -- бесконечный режим: ящик раз в 5 минут от начала раунда
+MODE.EndlessLootTime = 1800 -- бесконечный режим: за столько секунд лут доходит до конца прогрессии
 MODE.AirdropEvery = 2 -- ящик падает в подготовку каждой AirdropEvery-й волны начиная с AirdropFromWave (2, 4, 6...)
 MODE.AirdropSkyOffset = 80
 MODE.AirdropMaxDropHeight = 3000
@@ -66,6 +68,10 @@ end
 -- прогрессия 0..1: первый аирдроп (волна AirdropFromWave) -> последняя волна режима
 local function GetProgress()
 	local mode = CurrentRound()
+
+	if mode and mode.saved and mode.saved.Endless and mode.saved.StartTime then
+		return math.Clamp((CurTime() - mode.saved.StartTime) / mode.EndlessLootTime, 0, 1)
+	end
 	local first = mode and mode.AirdropFromWave or 2
 	local wave = GetGlobalInt("ZS_Wave", first)
 	local waves = GetGlobalInt("ZS_Waves", 6)
@@ -321,6 +327,19 @@ hook.Add("ZS_PrepStart", "ZS_Airdrop", function(wave)
 	mode.saved.AirdropWave = wave
 
 	mode:SpawnAirdrop()
+end)
+
+-- бесконечный режим: волн нет, ящик падает каждые EndlessAirdropInterval секунд
+timer.Create("ZS_EndlessAirdrop", 1, 0, function()
+	local mode = CurrentRound()
+	if zb.ROUND_STATE ~= 1 or not mode or mode.name ~= "zs" or not mode.saved.Endless or not mode.saved.StartTime then return end
+
+	mode.saved.NextEndlessAirdrop = mode.saved.NextEndlessAirdrop or mode.saved.StartTime + mode.EndlessAirdropInterval
+
+	if CurTime() >= mode.saved.NextEndlessAirdrop then
+		mode.saved.NextEndlessAirdrop = mode.saved.NextEndlessAirdrop + mode.EndlessAirdropInterval
+		mode:SpawnAirdrop()
+	end
 end)
 
 -- для теста: zb_zsairdrop

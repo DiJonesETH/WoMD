@@ -170,19 +170,23 @@ end
 
 local function DrawRoundInfo()
 	local wave, waves, active, phaseEnd = MODE:GetWaveInfo()
-	if waves <= 0 then return end
+	local endless = MODE:IsEndless()
+	if waves <= 0 and not endless then return end
 
 	local x, y = ScreenScale(8), ScreenScale(8)
 	local w, h = ScreenScale(110), ScreenScale(32)
 
 	draw.RoundedBox(6, x, y, w, h, colBG)
 
-	local title = "Wave " .. math.max(wave, 1) .. " / " .. waves
+	local title = endless and "Endless" or ("Wave " .. math.max(wave, 1) .. " / " .. waves)
 	draw.SimpleText(title, "ZB_InterfaceMediumLarge", x + ScreenScale(5), y + ScreenScale(3), colWhite, TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
 
 	local status, color
 	if zb.ROUND_STATE ~= 1 or phaseEnd <= 0 then
 		status, color = "Waiting", colWhite
+	elseif active and endless then
+		-- бесконечный режим: сколько выжившие держатся после подготовки
+		status, color = "Survived: " .. FormatTime(CurTime() - phaseEnd), colInfected
 	elseif active then
 		status, color = "Wave: " .. FormatTime(phaseEnd - CurTime()), colInfected
 	else
