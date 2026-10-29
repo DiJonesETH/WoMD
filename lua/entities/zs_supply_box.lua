@@ -247,11 +247,11 @@ local function OpenShop(box)
 
 	local frame = vgui.Create("DFrame")
 	shopFrame = frame
-	frame:SetSize(math.min(ScrW() - 40, 820), math.min(ScrH() - 40, 560))
+	frame:SetSize(math.min(ScrW() - 40, 900), math.min(ScrH() - 40, 640))
 	frame:Center()
 	frame:SetTitle("")
 	frame:MakePopup()
-	frame:SetKeyboardInputEnabled(false)
+	frame:SetKeyboardInputEnabled(true) -- поиск по имени
 
 	function frame:Paint(w, h)
 		draw.RoundedBox(6, 0, 0, w, h, colBack)
@@ -266,11 +266,39 @@ local function OpenShop(box)
 		end
 	end
 
-	local cats = vgui.Create("DPanel", frame)
-	cats:Dock(LEFT)
-	cats:DockMargin(6, 40, 6, 6)
-	cats:SetWide(170)
-	cats.Paint = nil
+	-- левая колонка: вкладки магазина или калибры (у арсенала), сверху - поиск по имени
+	local left = vgui.Create("DPanel", frame)
+	left:Dock(LEFT)
+	left:DockMargin(6, 40, 6, 6)
+	left:SetWide(190)
+	left.Paint = nil
+
+	local search = vgui.Create("DTextEntry", left)
+	search:Dock(TOP)
+	search:DockMargin(0, 0, 0, 6)
+	search:SetTall(28)
+	search:SetPlaceholderText("Search by name...")
+	search:SetUpdateOnType(true)
+
+	local hasWeapons = false
+	for _, cat in ipairs(shop) do
+		for _, item in ipairs(cat.items) do
+			if item.kind == "weapon" then hasWeapons = true break end
+		end
+	end
+
+	-- переключатель "вкладки / калибры" (только если в магазине есть оружие)
+	local modeBar
+	if hasWeapons then
+		modeBar = vgui.Create("DPanel", left)
+		modeBar:Dock(TOP)
+		modeBar:DockMargin(0, 0, 0, 6)
+		modeBar:SetTall(28)
+		modeBar.Paint = nil
+	end
+
+	local cats = vgui.Create("DScrollPanel", left)
+	cats:Dock(FILL)
 
 	local scroll = vgui.Create("DScrollPanel", frame)
 	scroll:Dock(FILL)
@@ -281,10 +309,40 @@ local function OpenShop(box)
 	layout:SetSpaceX(8)
 	layout:SetSpaceY(8)
 
-	local function ShowCategory(cat)
+	-- оружие, которого нет на сервере (не установлен аддон), не показывается
+	local function Available(item)
+		return item.kind ~= "weapon" or weapons.GetStored(item.class) ~= nil
+	end
+
+	local function ItemCaliber(item)
+		if item.kind ~= "weapon" then return end
+
+		local wep = weapons.Get(item.class)
+		local ammo = wep and wep.Primary and wep.Primary.Ammo
+		if isstring(ammo) and ammo ~= "" and string.lower(ammo) ~= "none" then return ammo end
+	end
+
+	local function AllItems()
+		local list, seen = {}, {}
+
+		for _, cat in ipairs(shop) do
+			for _, item in ipairs(cat.items) do
+				if not seen[item.id] and Available(item) then
+					seen[item.id] = true
+					list[#list + 1] = item
+				end
+			end
+		end
+
+		return list
+	end
+
+	local function ShowItems(items)
 		layout:Clear()
 
-		for _, item in ipairs(cat.items) do
+		for _, item in ipairs(items) do
+			if not Available(item) then continue end
+
 			local card = layout:Add("DButton")
 			card:SetSize(148, 160)
 			card:SetText("")
@@ -296,6 +354,7 @@ local function OpenShop(box)
 			icon:SetMouseInputEnabled(false)
 
 			local name = ItemName(item)
+			local caliber = ItemCaliber(item)
 
 			function card:Paint(w, h)
 				draw.RoundedBox(4, 0, 0, w, h, self:IsHovered() and colHover or colPanel)
@@ -308,7 +367,7 @@ local function OpenShop(box)
 				draw.SimpleText(priceText, "ZS_ShopPrice", w * 0.5, 138, enough and colPoints or (price and colNoPoints or colGray), TEXT_ALIGN_CENTER)
 			end
 
-			card:SetTooltip(name)
+			card:SetTooltip(caliber and (name .. "\n" .. caliber) or name)
 
 			function card:DoClick()
 				net.Start("zs_shop_buy")
@@ -319,27 +378,136 @@ local function OpenShop(box)
 				surface.PlaySound("ui/buttonclick.wav")
 			end
 		end
+
+		scroll:GetVBar():SetScroll(0)
 	end
 
-	for i, cat in ipairs(shop) do
-		local btn = vgui.Create("DButton", cats)
+	local function AddListButton(title, count, onClick, isActive)
+		local btn = cats:Add("DButton")
 		btn:Dock(TOP)
 		btn:DockMargin(0, 0, 0, 6)
 		btn:SetTall(34)
 		btn:SetText("")
 
 		function btn:Paint(w, h)
-			draw.RoundedBox(4, 0, 0, w, h, (frame.ZSCategory == cat or self:IsHovered()) and colHover or colPanel)
-			draw.SimpleText(cat.name, "ZS_ShopPrice", 12, h * 0.5, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+			draw.RoundedBox(4, 0, 0, w, h, (isActive() or self:IsHovered()) and colHover or colPanel)
+			draw.SimpleText(title, "ZS_ShopPrice", 12, h * 0.5, color_white, TEXT_ALIGN_LEFT, TEXT_ALIGN_CENTER)
+			if count then draw.SimpleText(count, "ZS_ShopItem", w - 10, h * 0.5, colGray, TEXT_ALIGN_RIGHT, TEXT_ALIGN_CENTER) end
 		end
 
-		function btn:DoClick()
-			frame.ZSCategory = cat
-			ShowCategory(cat)
-		end
-
-		if i == 1 then btn:DoClick() end
+		btn.DoClick = onClick
+		return btn
 	end
+
+	local mode = "tabs"
+	local BuildList
+
+	local function ShowTabs()
+		cats:Clear()
+
+		local first
+		for _, cat in ipairs(shop) do
+			local count = 0
+			for _, item in ipairs(cat.items) do
+				if Available(item) then count = count + 1 end
+			end
+
+			if count > 0 then
+				local btn = AddListButton(cat.name, nil, function()
+					frame.ZSCategory = cat
+					search:SetText("")
+					ShowItems(cat.items)
+				end, function() return frame.ZSCategory == cat end)
+
+				first = first or btn
+			end
+		end
+
+		if first then first:DoClick() end
+	end
+
+	-- калибры: все оружие магазина, сгруппированное по патронам (Primary.Ammo)
+	local function ShowCalibers()
+		cats:Clear()
+
+		local byCaliber, names = {}, {}
+		for _, item in ipairs(AllItems()) do
+			local caliber = ItemCaliber(item)
+			if caliber then
+				if not byCaliber[caliber] then
+					byCaliber[caliber] = {}
+					names[#names + 1] = caliber
+				end
+				table.insert(byCaliber[caliber], item)
+			end
+		end
+
+		table.sort(names)
+
+		local first
+		for _, caliber in ipairs(names) do
+			local items = byCaliber[caliber]
+			table.sort(items, function(a, b) return (ItemPrice(a) or 0) < (ItemPrice(b) or 0) end)
+
+			local btn = AddListButton(caliber, #items, function()
+				frame.ZSCategory = caliber
+				search:SetText("")
+				ShowItems(items)
+			end, function() return frame.ZSCategory == caliber end)
+
+			first = first or btn
+		end
+
+		if first then first:DoClick() end
+	end
+
+	BuildList = function()
+		if mode == "calibers" then ShowCalibers() else ShowTabs() end
+	end
+
+	if modeBar then
+		for i, info in ipairs({{"tabs", "Categories"}, {"calibers", "Calibers"}}) do
+			local btn = vgui.Create("DButton", modeBar)
+			btn:Dock(i == 1 and LEFT or FILL)
+			btn:SetWide(94)
+			btn:DockMargin(0, 0, i == 1 and 4 or 0, 0)
+			btn:SetText("")
+
+			function btn:Paint(w, h)
+				draw.RoundedBox(4, 0, 0, w, h, (mode == info[1] or self:IsHovered()) and colHover or colPanel)
+				draw.SimpleText(info[2], "ZS_ShopItem", w * 0.5, h * 0.5, mode == info[1] and colPoints or color_white, TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+			end
+
+			function btn:DoClick()
+				if mode == info[1] then return end
+				mode = info[1]
+				BuildList()
+			end
+		end
+	end
+
+	-- поиск по имени (и классу) по всему магазину
+	function search:OnValueChange(text)
+		text = string.Trim(string.lower(text or ""))
+
+		if text == "" then
+			BuildList()
+			return
+		end
+
+		frame.ZSCategory = nil
+
+		local found = {}
+		for _, item in ipairs(AllItems()) do
+			if string.find(string.lower(ItemName(item)), text, 1, true) or string.find(string.lower(item.class or item.id or ""), text, 1, true) then
+				found[#found + 1] = item
+			end
+		end
+
+		ShowItems(found)
+	end
+
+	BuildList()
 end
 
 net.Receive("zs_shop_open", function()

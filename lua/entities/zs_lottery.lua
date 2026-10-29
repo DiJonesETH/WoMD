@@ -32,7 +32,8 @@ local function ShopCategory(name)
 		if cat.name == name then
 			local list = {}
 			for _, item in ipairs(cat.items) do
-				if item.class then list[#list + 1] = item.class end
+				-- только оружие, которое есть на сервере (оружие аддонов, sh_zs_wfa_shop.lua)
+				if item.class and weapons.GetStored(item.class) then list[#list + 1] = item.class end
 			end
 			return list
 		end
