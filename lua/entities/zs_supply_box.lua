@@ -304,8 +304,17 @@ local function OpenShop(box)
 	scroll:Dock(FILL)
 	scroll:DockMargin(0, 40, 6, 6)
 
+	-- полоса прокрутки справа в цветах магазина
+	local vbar = scroll:GetVBar()
+	vbar:SetWide(10)
+	vbar:SetHideButtons(true)
+	function vbar:Paint(w, h) draw.RoundedBox(4, 0, 0, w, h, colPanel) end
+	function vbar.btnGrip:Paint(w, h) draw.RoundedBox(4, 0, 0, w, h, colHover) end
+
+	-- сетка растет вниз по содержимому (Dock TOP), поэтому длинные вкладки прокручиваются
 	local layout = vgui.Create("DIconLayout", scroll)
-	layout:Dock(FILL)
+	layout:Dock(TOP)
+	layout:DockMargin(0, 0, 4, 0)
 	layout:SetSpaceX(8)
 	layout:SetSpaceY(8)
 
