@@ -67,6 +67,11 @@ if SERVER then
 		end
 	end
 
+	function ENT:HasErgot()
+		local owner = self:GetOwner()
+		return IsValid(owner) and ZS_HasSkill(owner, "ergot")
+	end
+
 	function ENT:Grow()
 		if ColonySize(self.Colony) >= self.MaxColony then return end
 
@@ -84,7 +89,11 @@ if SERVER then
 			for _, ply in player.Iterator() do
 				if not ply:Alive() or ply:GetPos():Distance(pos) > self.Radius then continue end
 
-				if ZS_IsZombie(ply) and ZS_HealOrganism then
+				-- Спорынья (улучшение мясного мицелия): кашель, замедление и размытое зрение у выживших рядом
+				if ply:Team() == 0 and self:HasErgot() then
+					ply.zs_CoughUntil = math.max(ply.zs_CoughUntil or 0, time + 3)
+					ply:SetNWFloat("ZS_SporedUntil", time + 2)
+				elseif ZS_IsZombie(ply) and ZS_HealOrganism then
 					ZS_HealOrganism(ply, 1.5)
 				end
 			end

@@ -10,7 +10,33 @@ local function IsLivingSurvivor(ply)
 	return IsValid(ply) and ply:IsPlayer() and ply:Alive() and ply:Team() == TEAM_SURVIVORS
 end
 
+-- Спорынья (споры волдырей) замедляет выживших, мясные петли кокона держат их за ноги.
+-- Скорость режется в обоих реалмах, чтобы не расходилось предсказание движения
+ZS_SPORE_SLOW = 0.6
+
+hook.Add("SetupMove", "ZS_MetaboliserSlow", function(ply, mv)
+	if ply:GetNWFloat("ZS_SnaredUntil", 0) > CurTime() then
+		mv:SetMaxClientSpeed(1)
+		local vel = mv:GetVelocity()
+		mv:SetVelocity(Vector(0, 0, math.min(vel.z, 0)))
+		mv:SetButtons(bit.band(mv:GetButtons(), bit.bnot(IN_JUMP)))
+	elseif ply:GetNWFloat("ZS_SporedUntil", 0) > CurTime() then
+		mv:SetMaxClientSpeed(mv:GetMaxClientSpeed() * ZS_SPORE_SLOW)
+	end
+end)
+
 if CLIENT then
+	-- Спорынья: размытое зрение
+	hook.Add("RenderScreenspaceEffects", "ZS_ErgotBlur", function()
+		if not IsValid(lply) or not lply:Alive() then return end
+
+		local left = lply:GetNWFloat("ZS_SporedUntil", 0) - CurTime()
+		if left <= 0 then return end
+
+		DrawMotionBlur(0.08, math.Clamp(left, 0, 1) * 0.9, 0.01)
+		DrawToyTown(4, ScrH())
+	end)
+
 	-- Стадные феромоны: отмеченный ударом выживший виден зараженным сквозь стены
 	local markMat = Material("models/debug/debugwhite")
 
@@ -168,7 +194,7 @@ local function UpdateNPCRelations(npc)
 	end
 end
 
-local function SpawnZombieNPC(class, pos, owner)
+local function SpawnZombieNPC(class, pos, owner, keepBody)
 	local npc = ents.Create(class)
 	if not IsValid(npc) then return end
 
@@ -178,9 +204,11 @@ local function SpawnZombieNPC(class, pos, owner)
 	npc:Activate()
 
 	-- без хедкраба: и визуально, и при смерти он не выпрыгивает
-	npc:SetSaveValue("m_fIsHeadless", true)
-	for i = 1, npc:GetNumBodyGroups() - 1 do
-		npc:SetBodygroup(i, 0)
+	if not keepBody then
+		npc:SetSaveValue("m_fIsHeadless", true)
+		for i = 1, npc:GetNumBodyGroups() - 1 do
+			npc:SetBodygroup(i, 0)
+		end
 	end
 
 	npc.zs_Owner = owner
@@ -366,7 +394,8 @@ local function Reflux(ply)
 		local spread = VectorRand() * 0.06
 		local pos = ply:EyePos() + aim * 16 - Vector(0, 0, 6)
 
-		ZS_SpawnAcidGlob(ply, pos, (aim + spread) * REFLUX_SPEED + ply:GetVelocity() * 0.5)
+		local glob = ZS_SpawnAcidGlob(ply, pos, (aim + spread) * REFLUX_SPEED + ply:GetVelocity() * 0.5)
+		if IsValid(glob) and ZS_HasSkill(ply, "sticky_reflux") then glob.zs_Sticky = true end
 
 		if math.random(3) == 1 then
 			ply:EmitSound("physics/flesh/flesh_squishy_impact_hard" .. math.random(4) .. ".wav", 65, math.random(130, 150))
@@ -418,6 +447,16 @@ hook.Add("PlayerDeath", "ZS_MetaboliserMethane", function(ply)
 		local pos = IsValid(ragdoll) and ragdoll:WorldSpaceCenter() or fallback
 
 		MethaneExplode(ply, pos)
+
+		-- Тяжелый газ (улучшение): облако ядовитого газа на месте взрыва
+		if ZS_HasSkill(ply, "heavy_gas") then
+			local cloud = ents.Create("zs_gas_cloud")
+			if IsValid(cloud) then
+				cloud:SetPos(pos)
+				cloud:SetOwner(ply)
+				cloud:Spawn()
+			end
+		end
 	end)
 end)
 
@@ -450,10 +489,11 @@ local function BuildNest(ply)
 	local nest = ents.Create("zs_nest")
 	nest:SetPos(pos + Vector(0, 0, nest.HalfHeight - 4))
 	nest:SetOwner(ply)
+	nest.zs_Cocoon = ZS_HasSkill(ply, "cocoon") -- Кокон (улучшение, lua/entities/zs_nest.lua)
 	nest:Spawn()
 
 	nest:EmitSound("physics/flesh/flesh_bloody_break.wav", 75, 70)
-	Notify(ply, "Nest built")
+	Notify(ply, nest.zs_Cocoon and "Cocoon built" or "Nest built")
 end
 
 local function PlaceBlister(ply)
@@ -508,8 +548,76 @@ local function BacterialSeeding(ply)
 		org.adrenalineAdd = math.Approach(org.adrenalineAdd, 4, 4)
 	end
 
+	-- Трансфузия (улучшение): удары чаще, урон меньше; от зараженного к союзнику тянется щупальце
+	if ZS_HasSkill(ply, "transfusion") then
+		ally:SetNWFloat("ZS_RageUntil", math.max(ally:GetNWFloat("ZS_RageUntil", 0), CurTime() + SEED_TIME))
+		ally.zs_TransfusionUntil = CurTime() + SEED_TIME
+
+		net.Start("zs_boss_tentacle")
+			net.WriteEntity(ply)
+			net.WriteEntity(ally)
+			net.WriteVector(ally:WorldSpaceCenter())
+			net.WriteFloat(SEED_TIME)
+		net.Broadcast()
+	end
+
 	ply:EmitSound("npc/barnacle/barnacle_gulp" .. math.random(2) .. ".wav", 70)
 	Notify(ply, "Seeding: your ally heals for " .. SEED_TIME .. " sec.")
+end
+
+-- Разум улья (улучшение стадных феромонов): первый изучивший открывает всем зараженным зрение сквозь стены (F,
+-- cl_zs_hivemind.lua); следующие вместо этого раз за жизнь призывают трех муравьиных львов (E+R).
+-- Зараженные в 10 метрах от владельца разума улья регенерируют быстрее
+local HIVE_RADIUS, HIVE_HEAL = 525, 2
+
+local function HiveMindOwner(ply)
+	local mode = CurrentRound()
+	return mode and mode.saved and mode.saved.HiveMindOwner
+end
+
+hook.Add("ZS_ApplySkillEffects", "ZS_HiveMind", function(ply)
+	if not ZS_HasSkill(ply, "hive_mind") then return end
+
+	local mode = CurrentRound()
+	if not mode or not mode.saved then return end
+
+	mode.saved.HiveMindOwner = mode.saved.HiveMindOwner or ply:SteamID64() or tostring(ply:EntIndex())
+	SetGlobalBool("ZS_HiveMind", true)
+end)
+
+hook.Add("ZS_RoundReset", "ZS_HiveMind", function(ply)
+	SetGlobalBool("ZS_HiveMind", false)
+	ply.zs_AntlionsUsed = nil
+end)
+
+hook.Add("PlayerSpawn", "ZS_HiveMindLife", function(ply)
+	ply.zs_AntlionsUsed = nil
+end)
+
+local function SpawnHiveAntlions(ply)
+	if ply.zs_AntlionsUsed then return end
+
+	local owner = HiveMindOwner(ply)
+	if owner == (ply:SteamID64() or tostring(ply:EntIndex())) then
+		ZS_NotifyOnce(ply, "hive_owner", "Your Hive Mind already lets all infected see through walls")
+		return
+	end
+
+	ply.zs_AntlionsUsed = true
+
+	for _ = 1, 3 do
+		SpawnZombieNPC("npc_antlion", FindSpawnSpot(ply, 110), ply, true)
+	end
+
+	ply:EmitSound("npc/antlion/distract1.wav", 90)
+end
+
+-- Липкий рефлюкс (улучшение): кислота, попавшая в выжившего, жжет его еще STICKY_TIME секунд
+local STICKY_TIME, STICKY_DAMAGE = 5, 3
+
+function ZS_StickAcid(victim, attacker)
+	victim.zs_AcidUntil = CurTime() + STICKY_TIME
+	victim.zs_AcidBy = attacker
 end
 
 -- Питательная среда и стадные феромоны (CTRL+R)
@@ -536,7 +644,9 @@ hook.Add("KeyPress", "ZS_MetaboliserAbilities", function(ply, key)
 	if zb.ROUND_STATE ~= 1 or not IsMetaboliser(ply) or IsValid(ply.FakeRagdoll) then return end
 
 	if key == IN_RELOAD then
-		if ply:KeyDown(IN_DUCK) then
+		if ply:KeyDown(IN_USE) then
+			if ZS_HasSkill(ply, "hive_mind") then SpawnHiveAntlions(ply) end
+		elseif ply:KeyDown(IN_DUCK) then
 			if ZS_HasSkill(ply, "nutrient_medium") then SpawnNutrientNPC(ply) end
 		elseif ZS_HasSkill(ply, "bacterial_seeding") then
 			BacterialSeeding(ply)
@@ -584,6 +694,32 @@ hook.Add("Think", "ZS_MetaboliserTick", function()
 			seeded[ally] = nil
 		else
 			ZS_HealOrganism(ally, 1.5)
+		end
+	end
+
+	-- разум улья: регенерация рядом с его владельцами
+	for _, hive in player.Iterator() do
+		if IsMetaboliser(hive) and ZS_HasSkill(hive, "hive_mind") then
+			for _, ent in ipairs(ents.FindInSphere(hive:GetPos(), HIVE_RADIUS)) do
+				if IsLivingZombie(ent) then ZS_HealOrganism(ent, HIVE_HEAL) end
+			end
+		end
+	end
+
+	-- липкая кислота
+	for _, ply in player.Iterator() do
+		if (ply.zs_AcidUntil or 0) > CurTime() and IsLivingSurvivor(ply) then
+			local attacker = IsValid(ply.zs_AcidBy) and ply.zs_AcidBy or game.GetWorld()
+
+			local dmg = DamageInfo()
+			dmg:SetAttacker(attacker)
+			dmg:SetInflictor(attacker)
+			dmg:SetDamage(STICKY_DAMAGE)
+			dmg:SetDamageType(DMG_BURN)
+			dmg:SetDamagePosition(ply:WorldSpaceCenter())
+			hg.GetCurrentCharacter(ply):TakeDamageInfo(dmg)
+
+			ply:EmitSound("player/pl_burnpain" .. math.random(3) .. ".wav", 60, 120)
 		end
 	end
 

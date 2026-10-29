@@ -9,6 +9,8 @@ ENT.Spawnable = false
 ENT.Model = "models/hunter/misc/sphere2x2.mdl"
 ENT.Material = "models/flesh"
 ENT.MaxHealth = 400
+ENT.CocoonHealth = 1200 -- Кокон (улучшение гнезда): прочнее и окружен мясными петлями (zs_meat_loop.lua)
+ENT.CocoonSnares = 4
 
 -- приплюснутый купол шириной ~95 и высотой ~36 юнитов (половина роста игрока)
 ENT.HeightScale = 0.38
@@ -16,6 +18,10 @@ ENT.HalfWidth = 46
 ENT.HalfHeight = 18
 ENT.Blisters = 2 -- волдырей вокруг нового гнезда
 ENT.SpawnCooldown = 2 -- из гнезда выходит один зараженный раз в SpawnCooldown секунд
+
+function ENT:SetupDataTables()
+	self:NetworkVar("Bool", 0, "Cocoon")
+end
 
 if SERVER then
 	function ENT:Initialize()
@@ -36,8 +42,17 @@ if SERVER then
 		local phys = self:GetPhysicsObject()
 		if IsValid(phys) then phys:EnableMotion(false) end
 
-		self:SetHealth(self.MaxHealth)
-		self:SetMaxHealth(self.MaxHealth)
+		local health = self.zs_Cocoon and self.CocoonHealth or self.MaxHealth
+		self:SetCocoon(self.zs_Cocoon or false)
+		self:SetHealth(health)
+		self:SetMaxHealth(health)
+
+		if self.zs_Cocoon then
+			self:SetColor(Color(130, 50, 60))
+			timer.Simple(0, function()
+				if IsValid(self) then self:SpawnSnares() end
+			end)
+		end
 
 		-- вокруг гнезда сразу вырастают волдыри мясного мицелия (lua/entities/zs_blister.lua)
 		timer.Simple(0, function()
@@ -48,6 +63,33 @@ if SERVER then
 				ZS_SpawnBlisterNear(self:GetPos(), self:GetOwner(), colony, self)
 			end
 		end)
+	end
+
+	-- мясные петли по кругу вокруг кокона
+	function ENT:SpawnSnares()
+		self.Snares = {}
+
+		for i = 1, self.CocoonSnares do
+			local dir = Angle(0, (360 / self.CocoonSnares) * i + math.Rand(-20, 20), 0):Forward()
+			local start = self:GetPos() + dir * math.Rand(90, 150) + Vector(0, 0, 40)
+			local tr = util.TraceLine({start = start, endpos = start - Vector(0, 0, 200), filter = self, mask = MASK_SOLID_BRUSHONLY})
+
+			if tr.Hit and tr.HitNormal.z > 0.6 then
+				local snare = ents.Create("zs_meat_loop")
+				if IsValid(snare) then
+					snare:SetPos(tr.HitPos + Vector(0, 0, 1))
+					snare:SetOwner(self:GetOwner())
+					snare:Spawn()
+					self.Snares[#self.Snares + 1] = snare
+				end
+			end
+		end
+	end
+
+	function ENT:OnRemove()
+		for _, snare in ipairs(self.Snares or {}) do
+			if IsValid(snare) then snare:Remove() end
+		end
 	end
 
 	-- зараженный появляется ровно в точке, где поставлено гнездо (на земле под его центром)
@@ -86,10 +128,12 @@ else
 		-- гнездо медленно пульсирует
 		local scale = 1 + math.sin(CurTime() * 1.5 + self:EntIndex()) * 0.04
 		local mat = Matrix()
-		mat:Scale(Vector(scale, scale, scale * self.HeightScale))
+		-- кокон - вытянутый плотный мешок, а не приплюснутый купол
+		mat:Scale(Vector(scale, scale, scale * (self:GetCocoon() and self.HeightScale * 2.2 or self.HeightScale)))
 
 		self:EnableMatrix("RenderMultiply", mat)
-		self:SetRenderBounds(Vector(-self.HalfWidth, -self.HalfWidth, -self.HalfHeight) * 1.2, Vector(self.HalfWidth, self.HalfWidth, self.HalfHeight) * 1.2)
+		local tall = self:GetCocoon() and 3 or 1.2
+		self:SetRenderBounds(Vector(-self.HalfWidth * 1.2, -self.HalfWidth * 1.2, -self.HalfHeight * tall), Vector(self.HalfWidth * 1.2, self.HalfWidth * 1.2, self.HalfHeight * tall))
 		self:DrawModel()
 	end
 end

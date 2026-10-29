@@ -65,6 +65,9 @@ if SERVER then
 			-- кислота босса-гонома парализует, как "Парализующие наросты"
 			if self.zs_Paralyze and ZS_ParalyzeSurvivor then ZS_ParalyzeSurvivor(victim) end
 
+			-- липкий рефлюкс metaboliser: кислота продолжает жечь (sh_zs_metaboliser.lua)
+			if self.zs_Sticky and ZS_StickAcid then ZS_StickAcid(victim, attacker) end
+
 			local char = hg.GetCurrentCharacter(victim)
 
 			-- ожог: именно тип урона DMG_BURN

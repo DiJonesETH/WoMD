@@ -143,6 +143,8 @@ ZS_BOSS_CLASSES = {
 
 -- крик матриарха (sv_zs_boss.lua): под баффом (NW ZS_RageUntil) когти бьют в 1/0.6 раза чаще (weapon_hands_sh.lua)
 ZS_RAGE_ATTACK_MUL = 0.6
+-- трансфузия metaboliser: получаемый урон под ней
+ZS_TRANSFUSION_RESIST = 0.6
 
 -- босс зависит от класса зараженного, который им становится
 ZS_BOSS_FOR_CLASS = {
@@ -484,7 +486,10 @@ if SERVER then
 		local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
 		if not ZS_IsZombie(ply) then return end
 
-		dmgInfo:ScaleDamage(ZS_ClassInfo(ply.PlayerClassName).damageTaken * (ply.zs_DamageTakenMul or 1) * ZS_MeleeMul(ply, dmgInfo))
+		-- трансфузия metaboliser (sh_zs_metaboliser.lua) снижает получаемый урон
+		local transfusion = (ply.zs_TransfusionUntil or 0) > CurTime() and ZS_TRANSFUSION_RESIST or 1
+
+		dmgInfo:ScaleDamage(ZS_ClassInfo(ply.PlayerClassName).damageTaken * (ply.zs_DamageTakenMul or 1) * ZS_MeleeMul(ply, dmgInfo) * transfusion)
 	end)
 
 	local function HealOrganism(org, amount)
