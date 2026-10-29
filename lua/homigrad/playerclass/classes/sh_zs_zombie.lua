@@ -146,6 +146,13 @@ ZS_RAGE_ATTACK_MUL = 0.6
 -- трансфузия metaboliser: получаемый урон под ней
 ZS_TRANSFUSION_RESIST = 0.6
 
+-- Зараженные не истекают кровью и не получают урон мозгу (sh_zs_zombie.lua, CLASS.Think):
+-- урон по ним сразу снимает ZS_ZOMBIE_BLOOD_PER_DAMAGE крови за единицу урона, ниже ZS_ZOMBIE_DEATH_BLOOD - смерть;
+-- урон мозгу копится скрыто (без лоботомии и ее эффектов), от ZS_ZOMBIE_BRAIN_DEATH - смерть (выстрелы в голову)
+ZS_ZOMBIE_BLOOD_PER_DAMAGE = 40
+ZS_ZOMBIE_DEATH_BLOOD = 1500
+ZS_ZOMBIE_BRAIN_DEATH = 0.7
+
 -- босс зависит от класса зараженного, который им становится
 ZS_BOSS_FOR_CLASS = {
 	zs_bruiser = "zs_gonome",
@@ -283,6 +290,22 @@ for className, info in pairs(allClasses) do
 		if org.consciousness <= 0.3 then
 			org.consciousness = 1
 			org.needotrub = false
+		end
+
+		-- без кровотечений: раны закрываются сразу (кровь снимается в момент урона, хук ZS_ZombieBloodLoss)
+		if org.wounds and next(org.wounds) then table.Empty(org.wounds) end
+		if org.arterialwounds and next(org.arterialwounds) then table.Empty(org.arterialwounds) end
+		org.internalBleed = 0
+
+		-- без урона мозгу: он копится скрыто и убивает только на пороге смерти мозга
+		if (org.brain or 0) > 0 then
+			self.zs_BrainDamage = (self.zs_BrainDamage or 0) + org.brain
+			org.brain = 0
+
+			if self.zs_BrainDamage >= ZS_ZOMBIE_BRAIN_DEATH and self:Alive() then
+				self:Kill()
+				return
+			end
 		end
 
 		-- позвоночника у зараженных нет: перелом не парализует
@@ -480,6 +503,31 @@ if SERVER then
 
 		return ZS_MELEE_VS_INFECTED
 	end
+
+	-- без кровотечений: пули не открывают раны у зараженных
+	hook.Add("PreHomigradDamageBulletBleedAdd", "ZS_ZombieNoBleed", function(ent, org, dmgInfo, hitgroup, harm, hitBoxs, inputHole, hookInfo)
+		local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
+		if ZS_IsZombie(ply) then hookInfo.restricted = true end
+	end)
+
+	-- вместо кровотечения кровь теряется сразу пропорционально урону; мало крови - смерть
+	hook.Add("HomigradDamage", "ZS_ZombieBloodLoss", function(ent, dmgInfo)
+		local ply = IsValid(ent) and (ent:IsPlayer() and ent or hg.RagdollOwner(ent))
+		if not ZS_IsZombie(ply) or not ply:Alive() or ZS_IsBoss(ply) or not ply.organism then return end
+
+		local org = ply.organism
+		org.blood = math.max(org.blood - dmgInfo:GetDamage() * ZS_ZOMBIE_BLOOD_PER_DAMAGE, 0)
+
+		if org.blood <= ZS_ZOMBIE_DEATH_BLOOD then
+			timer.Simple(0, function()
+				if IsValid(ply) and ply:Alive() and ZS_IsZombie(ply) then ply:Kill() end
+			end)
+		end
+	end)
+
+	hook.Add("PlayerSpawn", "ZS_ZombieBrainReset", function(ply)
+		ply.zs_BrainDamage = nil
+	end)
 
 	-- живучесть класса
 	hook.Add("PreHomigradDamage", "ZS_ZombieDamageTaken", function(ent, dmgInfo)
