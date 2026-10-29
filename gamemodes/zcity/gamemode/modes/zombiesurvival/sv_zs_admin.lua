@@ -4,7 +4,7 @@ local MODE = MODE
 --   zb_zsteam <игрок> <survivor|infected>          - перевести игрока в команду
 --   zb_zsclass <игрок> <bruiser|agile|metaboliser> - сменить класс зараженного (навыки сбрасываются)
 --   zb_zsresetskills <игрок>                       - обнулить дерево навыков (очки остаются)
---   zb_makeexecutioner <игрок>                     - превратить игрока в палача (Executioner)
+--   zb_makeboss <игрок> [executioner|basilisk|matriarch] - превратить игрока в босса (без типа - по его классу)
 
 local TEAM_SURVIVORS, TEAM_INFECTED = 0, 1
 
@@ -140,7 +140,13 @@ AdminCommand("zb_zsresetskills", "<player>", function(mode, caller, target)
 	Announce(caller, "reset the skill tree of " .. target:Nick())
 end)
 
-AdminCommand("zb_makeexecutioner", "<player>", function(mode, caller, target)
+local function MakeBossCommand(mode, caller, target, args)
+	local bossClass = mode:BossClassByName(args[2])
+	if args[2] and not bossClass then
+		Reply(caller, "Usage: zb_makeboss <player> [executioner|basilisk|matriarch]")
+		return
+	end
+
 	if not (target:Alive() and ZS_IsZombie(target)) then
 		if target:Alive() then target:KillSilent() end
 
@@ -149,9 +155,12 @@ AdminCommand("zb_makeexecutioner", "<player>", function(mode, caller, target)
 	end
 
 	timer.Simple(0.3, function()
-		if IsValid(target) and mode:MakeBoss(target) then
-			Announce(caller, "turned " .. target:Nick() .. " into the Executioner")
+		if IsValid(target) and mode:MakeBoss(target, bossClass) then
+			Announce(caller, "turned " .. target:Nick() .. " into the " .. ZS_BOSS_CLASSES[target.PlayerClassName].name)
 			mode:CheckLastMan()
 		end
 	end)
-end)
+end
+
+AdminCommand("zb_makeboss", "<player> [executioner|basilisk|matriarch]", MakeBossCommand)
+AdminCommand("zb_makeexecutioner", "<player> [executioner|basilisk|matriarch]", MakeBossCommand) -- старое имя

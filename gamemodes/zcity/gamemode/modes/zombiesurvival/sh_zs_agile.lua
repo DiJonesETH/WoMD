@@ -55,7 +55,8 @@ end)
 local CLIMB_SPEED = 190
 
 hook.Add("Move", "ZS_AgileClingingClaws", function(ply, mv)
-	if not ZS_HasSkill(ply, "clinging_claws") or not ply:Alive() or not ZS_IsZombie(ply) then return end
+	-- цепкие когти agile и босс-василиск (sv_zs_boss.lua)
+	if not (ZS_HasSkill(ply, "clinging_claws") or ply.PlayerClassName == "zs_basilisk") or not ply:Alive() or not ZS_IsZombie(ply) then return end
 	if ply:OnGround() or ply:GetMoveType() ~= MOVETYPE_WALK or IsValid(ply.FakeRagdoll) then return end
 
 	local climb, hang = mv:KeyDown(IN_JUMP), mv:KeyDown(IN_DUCK)

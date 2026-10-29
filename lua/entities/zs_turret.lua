@@ -115,7 +115,7 @@ if SERVER then
 		if not IsValid(ent) then return false end
 
 		if ent:IsPlayer() then
-			return ent:Alive() and ZS_IsZombie and ZS_IsZombie(ent) and not IsValid(ent.FakeRagdoll)
+			return ent:Alive() and ZS_IsZombie and ZS_IsZombie(ent) and not IsValid(ent.FakeRagdoll) and not ent:GetNWBool("ZS_Invisible", false)
 		end
 
 		return ent:IsNPC() and ent:Health() > 0 and (zombieNPCs[ent:GetClass()] or ent.zs_Owner ~= nil)

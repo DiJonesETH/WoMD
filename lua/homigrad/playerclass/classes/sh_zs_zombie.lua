@@ -96,8 +96,59 @@ ZS_BOSS_CLASSES = {
 		meleeMul = 2,
 		clawsName = "Executioner Claws",
 		boss = true,
+		bossHealth = 5000,
 		modelScale = 1.2, -- ~2.2 м (обычный игрок ~1.83 м); хитбоксы скрытой модели растут вместе с ней, коробка движения прежняя
 	},
+	-- Василиск: agile из мяса, лазает по стенам, сверхбыстрые удары, щупальце и невидимость
+	zs_basilisk = {
+		key = "basilisk",
+		name = "Basilisk",
+		model = ZS_ZOMBIE_CLASSES.zs_agile.model,
+		material = "models/flesh",
+		viewModel = ZS_ZOMBIE_CLASSES.zs_agile.viewModel,
+		viewModelFOV = ZS_ZOMBIE_CLASSES.zs_agile.viewModelFOV,
+		viewModelHiddenBones = ZS_ZOMBIE_CLASSES.zs_agile.viewModelHiddenBones,
+		sounds = ZS_ZOMBIE_CLASSES.zs_agile.sounds,
+		soundPitch = 80,
+		color = Color(170, 60, 200),
+		speed = 1.3,
+		damageTaken = 1,
+		meleeMul = 1.2,
+		attackMul = 0.5, -- сверхбыстрые удары (вдвое чаще agile)
+		clawsName = "Basilisk Claws",
+		boss = true,
+		bossHealth = 3500,
+	},
+	-- Матриарх: metaboliser из зеленого мяса, крик-бафф для своих и струя кислоты
+	zs_matriarch = {
+		key = "matriarch",
+		name = "Matriarch",
+		model = ZS_ZOMBIE_CLASSES.zs_metaboliser.model,
+		material = "models/flesh",
+		green = true,
+		viewModel = ZS_ZOMBIE_CLASSES.zs_metaboliser.viewModel,
+		viewModelFOV = ZS_ZOMBIE_CLASSES.zs_metaboliser.viewModelFOV,
+		viewModelHiddenBones = ZS_ZOMBIE_CLASSES.zs_metaboliser.viewModelHiddenBones,
+		sounds = ZS_ZOMBIE_CLASSES.zs_metaboliser.sounds,
+		soundPitch = 75,
+		color = Color(90, 200, 70),
+		speed = 1,
+		damageTaken = 1,
+		meleeMul = 1.3,
+		clawsName = "Matriarch Claws",
+		boss = true,
+		bossHealth = 3000,
+	},
+}
+
+-- крик матриарха (sv_zs_boss.lua): под баффом (NW ZS_RageUntil) когти бьют в 1/0.6 раза чаще (weapon_hands_sh.lua)
+ZS_RAGE_ATTACK_MUL = 0.6
+
+-- босс зависит от класса зараженного, который им становится
+ZS_BOSS_FOR_CLASS = {
+	zs_bruiser = "zs_gonome",
+	zs_agile = "zs_basilisk",
+	zs_metaboliser = "zs_matriarch",
 }
 
 function ZS_ClassInfo(class)
@@ -171,6 +222,8 @@ for className, info in pairs(allClasses) do
 		if info.boss then
 			-- пули попадают по хитбоксам модели, масштаб модели сеть передает сама (хулл движения не трогаем)
 			self:SetModelScale(info.modelScale or 1, 0)
+			self:SetNWFloat("ZS_AttackMul", info.attackMul or 1)
+			self:SetNWBool("ZS_Green", info.green or false)
 			return
 		end
 
@@ -189,6 +242,7 @@ for className, info in pairs(allClasses) do
 		self:SetMaterial("")
 		self:SetNWString("ZS_Visual", "")
 		self:SetNWString("ZS_VisualMat", "")
+		self:SetNWBool("ZS_Invisible", false)
 		self.MeleeDamageMul = nil
 		self.StaminaExhaustMul = nil
 
@@ -319,7 +373,7 @@ hook.Add("CalcMainActivity", "ZS_ZombieAnims", function(ply, vel)
 	local anim = ACT_HL2MP_RUN_ZOMBIE
 	if vel:LengthSqr() <= 0 then
 		anim = ACT_HL2MP_IDLE_ZOMBIE
-	elseif ply.PlayerClassName == "zs_agile" and vel:Length2DSqr() >= 40000 then
+	elseif (ply.PlayerClassName == "zs_agile" or ply.PlayerClassName == "zs_basilisk") and vel:Length2DSqr() >= 40000 then
 		anim = ACT_HL2MP_RUN_ZOMBIE_FAST
 	end
 	if ply:IsFlagSet(FL_ANIMDUCKING) then
@@ -535,7 +589,7 @@ else
 			local hide = ent:IsDormant()
 
 			if ent:IsPlayer() then
-				hide = hide or not ent:Alive() or IsValid(ent.FakeRagdoll)
+				hide = hide or not ent:Alive() or IsValid(ent.FakeRagdoll) or ent:GetNWBool("ZS_Invisible", false)
 				hide = hide or (ent == LocalPlayer() and GetViewEntity() == ent and not (hg_thirdperson and hg_thirdperson:GetBool()))
 			end
 

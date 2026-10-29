@@ -54,7 +54,9 @@ local clawClasses = {
 	["zs_bruiser"] = 0.8,
 	["zs_agile"] = 0.2,
 	["zs_metaboliser"] = 0.5,
-	["zs_gonome"] = 1.0 -- медленнее громилы: тяжелые удары босса
+	["zs_gonome"] = 1.0, -- медленнее громилы: тяжелые удары босса
+	["zs_basilisk"] = 0, -- сверхбыстрые удары
+	["zs_matriarch"] = 0.5
 }
 
 -- зараженные Zombie Survival: когти со звуками ванильного зомби HL2
@@ -62,7 +64,9 @@ local zsClawClasses = {
 	["zs_bruiser"] = true,
 	["zs_agile"] = true,
 	["zs_metaboliser"] = true,
-	["zs_gonome"] = true
+	["zs_gonome"] = true,
+	["zs_basilisk"] = true,
+	["zs_matriarch"] = true
 }
 
 local zsUseAttackSkills = {"dash", "hyperdontia", "mass_impulse", "ballistic_growths", "nest"}
@@ -1328,6 +1332,18 @@ local customClassInfo = {
 		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
 		handsDesc = "zs_bruiser",
 		Instructions = "LMB - slash\nRMB - block\n\n<color=200,170,40>The Executioner tears survivors apart."
+	},
+	["zs_basilisk"] = {
+		PrintName = "Basilisk Claws",
+		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
+		handsDesc = "zs_agile",
+		Instructions = "LMB - slash\nRMB - block\n\n<color=170,60,200>Faster than the eye can follow."
+	},
+	["zs_matriarch"] = {
+		PrintName = "Matriarch Claws",
+		WepSelectIcon = Material("vgui/wep_jack_hmcd_zombhands"),
+		handsDesc = "zs_metaboliser",
+		Instructions = "LMB - slash\nRMB - block\n\n<color=90,200,70>The mother of the horde."
 	}
 }
 
@@ -1548,7 +1564,7 @@ function SWEP:PrimaryAttack(forcespecial)
 
 	self:UpdateNextIdle()
 
-	local attackMul = zsClawClasses[owner.PlayerClassName] and owner:GetNWFloat("ZS_AttackMul", 1) or 1
+	local attackMul = zsClawClasses[owner.PlayerClassName] and owner:GetNWFloat("ZS_AttackMul", 1) * (owner:GetNWFloat("ZS_RageUntil", 0) > CurTime() and (ZS_RAGE_ATTACK_MUL or 1) or 1) or 1
 	self:SetNextPrimaryFire(CurTime() + (.35 * math.Clamp((180 - owner.organism.stamina[1]) / 90,1,2) + (math.max(special_attack and 0.5 or 0, clawClasses[owner.PlayerClassName] or 0))) * attackMul)
 	self:SetNextSecondaryFire(CurTime() + (.35 + (math.max(special_attack and 0.5 or 0, clawClasses[owner.PlayerClassName] or 0))) * attackMul)
 	self:SetLastShootTime(CurTime())
