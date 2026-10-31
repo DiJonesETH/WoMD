@@ -7,13 +7,13 @@ ENT.Base = "base_anim"
 ENT.PrintName = "Meat Snare"
 ENT.Spawnable = false
 
-ENT.Model = "models/hunter/tubes/tube1x1x025.mdl"
+ENT.Model = "models/props_phx/normal_tire.mdl" -- шина PHX (есть в GMod), лежит плашмя и обтянута мясом
 ENT.Material = "models/flesh"
 ENT.MaxHealth = 80
 ENT.Radius = 32
 ENT.SnareTime = 2.5
 ENT.Cooldown = 6
-ENT.Scale = 0.6
+ENT.Scale = 1.1
 
 if SERVER then
 	function ENT:Initialize()
@@ -21,6 +21,8 @@ if SERVER then
 		self:SetMaterial(self.Material)
 		self:SetColor(Color(160, 70, 70))
 		self:SetModelScale(self.Scale, 0)
+		-- ось колеса - локальная Y: поворот по roll кладет шину плашмя
+		self:SetAngles(Angle(0, math.Rand(0, 360), 90))
 
 		self:SetSolid(SOLID_BBOX)
 		self:SetCollisionGroup(COLLISION_GROUP_WEAPON) -- проходима, но пули и удары попадают
@@ -75,7 +77,7 @@ function ENT:Draw()
 	-- петля шевелится
 	local scale = 1 + math.sin(CurTime() * 3 + self:EntIndex()) * 0.06
 	local mat = Matrix()
-	mat:Scale(Vector(scale, scale, 1))
+	mat:Scale(Vector(scale, scale, scale))
 
 	self:EnableMatrix("RenderMultiply", mat)
 	self:DrawModel()

@@ -77,7 +77,7 @@ if SERVER then
 			if tr.Hit and tr.HitNormal.z > 0.6 then
 				local snare = ents.Create("zs_meat_loop")
 				if IsValid(snare) then
-					snare:SetPos(tr.HitPos + Vector(0, 0, 1))
+					snare:SetPos(tr.HitPos + Vector(0, 0, 4))
 					snare:SetOwner(self:GetOwner())
 					snare:Spawn()
 					self.Snares[#self.Snares + 1] = snare

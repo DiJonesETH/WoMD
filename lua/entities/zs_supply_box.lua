@@ -150,7 +150,7 @@ if SERVER then
 	function ENT:OnTakeDamage(dmg)
 		-- ломать ящики могут только зараженные (игроки или их NPC)
 		local attacker = dmg:GetAttacker()
-		local byInfected = IsValid(attacker) and ((attacker:IsPlayer() and attacker:Team() ~= 0) or attacker:IsNPC())
+		local byInfected = IsValid(attacker) and ((attacker:IsPlayer() and attacker:Team() ~= 0) or attacker:IsNPC() or attacker:IsNextBot())
 		if not byInfected then return 0 end
 
 		self:SetHealth(self:Health() - dmg:GetDamage())

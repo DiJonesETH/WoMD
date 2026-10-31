@@ -205,6 +205,10 @@ local function InfectedFriendlyFire(ent, dmgInfo)
 	if not IsValid(victim) or not victim:IsPlayer() or not ZS_IsZombie(victim) then return false end
 
 	local attacker = dmgInfo:GetAttacker()
+
+	-- зомби орды (sv_zs_horde.lua) зараженных тоже не ранят
+	if IsValid(attacker) and attacker.zs_Horde then return true end
+
 	if IsValid(attacker) and not attacker:IsPlayer() and IsValid(attacker:GetOwner()) then attacker = attacker:GetOwner() end
 
 	return IsValid(attacker) and attacker:IsPlayer() and attacker ~= victim and ZS_IsZombie(attacker)

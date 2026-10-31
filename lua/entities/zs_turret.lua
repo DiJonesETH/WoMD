@@ -118,6 +118,9 @@ if SERVER then
 			return ent:Alive() and ZS_IsZombie and ZS_IsZombie(ent) and not IsValid(ent.FakeRagdoll) and not ent:GetNWBool("ZS_Invisible", false)
 		end
 
+		-- зомби орды (sv_zs_horde.lua) - некстботы
+		if ent.zs_Horde then return ent:Health() > 0 end
+
 		return ent:IsNPC() and ent:Health() > 0 and (zombieNPCs[ent:GetClass()] or ent.zs_Owner ~= nil)
 	end
 
@@ -145,7 +148,7 @@ if SERVER then
 
 		local candidates = player.GetAll()
 		for _, ent in ipairs(ents.FindInSphere(self:GetPos(), range)) do
-			if ent:IsNPC() then candidates[#candidates + 1] = ent end
+			if ent:IsNPC() or ent.zs_Horde then candidates[#candidates + 1] = ent end
 		end
 
 		for _, ent in ipairs(candidates) do
@@ -374,7 +377,7 @@ if SERVER then
 	function ENT:OnTakeDamage(dmg)
 		-- ломать турели могут только зараженные (игроки или их NPC)
 		local attacker = dmg:GetAttacker()
-		local byInfected = IsValid(attacker) and ((attacker:IsPlayer() and attacker:Team() ~= 0) or attacker:IsNPC())
+		local byInfected = IsValid(attacker) and ((attacker:IsPlayer() and attacker:Team() ~= 0) or attacker:IsNPC() or attacker:IsNextBot())
 		if not byInfected then return 0 end
 
 		self:SetHealth(self:Health() - dmg:GetDamage())

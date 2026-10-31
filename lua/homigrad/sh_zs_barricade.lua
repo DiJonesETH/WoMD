@@ -382,7 +382,7 @@ if SERVER then
 	end
 
 	hook.Add("EntityTakeDamage", "ZS_BarricadeDamage", function(ent, dmginfo)
-		if not Active() or ent:IsPlayer() or ent:IsNPC() then return end
+		if not Active() or ent:IsPlayer() or ent:IsNPC() or ent:IsNextBot() then return end
 
 		if ZSB.IsNailed(ent) and ZSB.GetHealth(ent) > 0 then
 			return DamageBarricade(ent, dmginfo)
@@ -392,7 +392,7 @@ if SERVER then
 		if dmginfo:IsDamageType(DMG_CRUSH) then return end
 
 		local attacker = dmginfo:GetAttacker()
-		local byInfected = IsValid(attacker) and ((attacker:IsPlayer() and ZS_IsZombie and ZS_IsZombie(attacker)) or attacker:IsNPC())
+		local byInfected = IsValid(attacker) and ((attacker:IsPlayer() and ZS_IsZombie and ZS_IsZombie(attacker)) or attacker:IsNPC() or attacker:IsNextBot())
 
 		ent.ZSPropHealth = ent.ZSPropHealth - dmginfo:GetDamage() * (byInfected and ZSB.FreePropZombieMul or 1)
 
