@@ -620,11 +620,30 @@ else
 		end
 	end
 
+	-- Новые регдоллы (падение и смерть) проверяются каждый кадр, а не раз в 0.5 с общего скана: у регдолла зараженного
+	-- скрытый материал NULL с момента создания, и без модели поверх он на это время пропадал из виду
+	local pendingRagdolls = {}
+
+	hook.Add("OnEntityCreated", "ZS_ZombieRagdollVisuals", function(ent)
+		if IsValid(ent) and ent:GetClass() == "prop_ragdoll" then
+			pendingRagdolls[ent] = CurTime() + 3
+		end
+	end)
+
 	-- ванильная модель поверх скрытой игровой модели; свою модель в первом лице не рисуем
 	hook.Add("Think", "ZS_ZombieVisuals", function()
 		if nextScan < CurTime() then
 			nextScan = CurTime() + 0.5
 			ScanVisuals()
+		end
+
+		for ent, untilTime in pairs(pendingRagdolls) do
+			if not IsValid(ent) or untilTime < CurTime() then
+				pendingRagdolls[ent] = nil
+			elseif ent:GetNWString("ZS_Visual", "") ~= "" then
+				tracked[ent] = tracked[ent] or false
+				pendingRagdolls[ent] = nil
+			end
 		end
 
 		for ent, visual in pairs(tracked) do
